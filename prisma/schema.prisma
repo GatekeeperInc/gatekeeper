@@ -1,0 +1,45 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Trial {
+  id        Int        @id @default(autoincrement())
+  userId    String
+  startTime DateTime   @default(now())
+  active    Boolean    @default(true)
+  passed    Boolean?   @default(false)
+  startedById String
+  feedbacks Feedback[]
+}
+
+model Feedback {
+  id          Int      @id @default(autoincrement())
+  trialId     Int
+  officerId   Int
+  performance Int
+  attitude    Int
+  focus       Int
+  late        Boolean
+  comments    String?
+  createdAt   DateTime @default(now())
+
+  trial Trial @relation(fields: [trialId], references: [id])
+}
+
+model Settings { 
+  id Int @id @default(autoincrement())
+  guildId String
+  trialRoleId String
+  raiderRoleId String
+  officerChannelId String
+}
