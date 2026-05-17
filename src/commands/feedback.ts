@@ -1,10 +1,16 @@
 import {
+    CheckboxBuilder,
+    LabelBuilder,
     ModalBuilder,
     SlashCommandBuilder,
+    TextInputBuilder,
+    TextInputStyle,
     type ChatInputCommandInteraction,
 } from 'discord.js';
-import type { DiscordClient } from '../DiscordClient.js';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import type { AppContext } from '../types.js';
+import { buildFeedbackModalCustomId } from '../services/feedbackService.js';
+import { findActiveTrial } from '../services/trialService.js';
+import { resolveGuildDisplayName } from '../services/guildSettings.js';
 
 /* 
     This form collects feedback from officers about a trial's performance 
@@ -37,15 +43,90 @@ export default {
                 .setDescription('The user to provide feedback for')
                 .setRequired(true)
         ),
-    async execute(interaction: ChatInputCommandInteraction, prisma: PrismaClient) {
+    async execute(interaction: ChatInputCommandInteraction, context: AppContext) {
         const target = interaction.options.getUser('target');
+
+        if (!interaction.guildId) {
+            await interaction.reply({
+                content: 'This command can only be used in a server.',
+                ephemeral: true,
+            });
+            return;
+        }
+
+        if (!target) {
+            await interaction.reply({
+                content: 'Target user is required.',
+                ephemeral: true,
+            });
+            return;
+        }
+
+        const activeTrial = await findActiveTrial(context.prisma, interaction.guildId, target.id);
+        if (!activeTrial) {
+            await interaction.reply({
+                content: `No active trial found for ${target.tag}.`,
+                ephemeral: true,
+            });
+            return;
+        }
 
         console.log(`Feedback command invoked for target: ${target?.tag}`);
 
+        const displayName = await resolveGuildDisplayName(context.client, interaction.guildId, target.id, target.displayName);
         const modal = new ModalBuilder()
-            .setCustomId('feedbackModal')
-            .setTitle(`Feedback for ${target?.tag || 'Unknown User'}`);
+            .setCustomId(buildFeedbackModalCustomId(activeTrial.id, target.id))
+            .setTitle(`Feedback for ${displayName}`);
 
+        const performanceInput = new TextInputBuilder()
+            .setCustomId('performance')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Rate performance from 1 to 5')
+            .setRequired(true);
+
+        const attitudeInput = new TextInputBuilder()
+            .setCustomId('attitude')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Rate attitude from 1 to 5')
+            .setRequired(true);
+
+        const focusInput = new TextInputBuilder()
+            .setCustomId('focus')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Rate focus from 1 to 5')
+            .setRequired(true);
+
+        const lateInput = new CheckboxBuilder()
+            .setCustomId('late')
+            .setDefault(false)
+
+        const commentsInput = new TextInputBuilder()
+            .setCustomId('comments')
+            .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder('Additional comments')
+            .setRequired(false);
+
+        const performanceLabel = new LabelBuilder()
+            .setLabel('Performance (1-5)')
+            .setTextInputComponent(performanceInput);
+
+        const attitudeLabel = new LabelBuilder()
+            .setLabel('Attitude (1-5)')
+            .setTextInputComponent(attitudeInput);
+
+        const focusLabel = new LabelBuilder()
+            .setLabel('Focus (1-5)')
+            .setTextInputComponent(focusInput);
+
+        const lateLabel = new LabelBuilder()
+            .setLabel('Late (Y/N)')
+            .setCheckboxComponent(lateInput);
+
+        const commentsLabel = new LabelBuilder()
+            .setLabel('Comments')
+            .setTextInputComponent(commentsInput);
+
+        modal.addLabelComponents(performanceLabel, attitudeLabel, focusLabel, lateLabel, commentsLabel);
         // needs components to work 
 
         await interaction.showModal(modal);

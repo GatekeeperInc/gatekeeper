@@ -1,4 +1,6 @@
-import { Client } from "discord.js";
+import { Client, type ClientOptions } from "discord.js";
+import type { PrismaClient } from "./generated/prisma/client.js";
+import type { AppContext, Command, Event } from "./types.js";
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -7,11 +9,17 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 
 export class DiscordClient extends Client {
-    commands: Map<string, any>;  // Or Collection<string, any>
+    commands: Map<string, Command>;
+    private context: AppContext;
 
-    constructor(options: any) {
+    constructor(options: ClientOptions, prisma: PrismaClient) {
         super(options);
-        this.commands = new Map<string, any>();  // Initialize here
+        this.commands = new Map<string, Command>();
+        this.context = {
+            prisma,
+            client: this,
+            getCommand: (name: string) => this.commands.get(name),
+        };
     }
 
     async loadCommands() {
@@ -23,9 +31,9 @@ export class DiscordClient extends Client {
             const filePath = path.join(commandsPath, file);
             try {
                 const commandModule = await import(pathToFileURL(filePath).href);
-                const command = commandModule.default ?? commandModule;
+                const command: Command = commandModule.default ?? commandModule;
 
-                if (command.data?.name && command.execute) {
+                if (command.data?.name && typeof command.execute === 'function') {
                     this.commands.set(command.data.name, command);
                     console.log(`Loaded command: ${command.data.name}`);
                 } else {
@@ -46,13 +54,13 @@ export class DiscordClient extends Client {
             const filePath = path.join(eventsPath, file);
             try {
                 const eventModule = await import(pathToFileURL(filePath).href);
-                const event = eventModule.default ?? eventModule;
+                const event: Event = eventModule.default ?? eventModule;
 
                 if (event.name && typeof event.execute === 'function') {
                     if (event.once) {
-                        this.once(event.name, (...args) => event.execute(...args, this));
+                        this.once(event.name, (...args) => event.execute(args[0], this.context));
                     } else {
-                        this.on(event.name, (...args) => event.execute(...args, this));
+                        this.on(event.name, (...args) => event.execute(args[0], this.context));
                     }
                     console.log(`Loaded event: ${event.name}`);
                 } else {
@@ -62,5 +70,9 @@ export class DiscordClient extends Client {
                 console.error(`Error loading event ${file}:`, error);
             }
         }
+    }
+
+    getContext(): AppContext {
+        return this.context;
     }
 }

@@ -48,12 +48,12 @@ for (const file of commandFiles) {
 const rest = new REST().setToken(token);
 
 try {
-  console.log(`Started refreshing ${commands.length} application (/) commands.`);
+  console.log(`Started refreshing ${commands.length} guild application (/) commands for guild ${guildId}.`);
   const data = await rest.put(
     Routes.applicationGuildCommands(clientId, guildId),
     { body: commands }
   ) as Array<unknown>;
-  console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+  console.log(`Successfully reloaded ${data.length} guild application (/) commands.`);
 } catch (error) {
   console.error(error);
 }

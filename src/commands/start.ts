@@ -1,5 +1,76 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import type { AppContext } from '../types.js';
+import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
+import { startTrial } from '../services/trialService.js';
+
+async function getValidatedTarget(interaction: ChatInputCommandInteraction) {
+    const target = interaction.options.getUser('target');
+    if (!target) {
+        await interaction.reply({
+            content: 'Target user is required.',
+            ephemeral: true,
+        });
+        return null;
+    }
+
+    return target;
+}
+
+async function getValidatedGuildContext(interaction: ChatInputCommandInteraction) {
+    const guild = interaction.guild;
+    const guildId = interaction.guildId;
+
+    if (!guild || !guildId) {
+        await interaction.reply({
+            content: 'This command can only be used in a server.',
+            ephemeral: true,
+        });
+        return null;
+    }
+
+    return { guild, guildId };
+}
+
+async function getSettingsOrReply(interaction: ChatInputCommandInteraction, context: AppContext, guildId: string) {
+    try {
+        return await getGuildSettings(context.prisma, guildId);
+    } catch (error) {
+        if (error instanceof GuildSettingsMissingError) {
+            await interaction.reply({
+                content: 'Server settings have not been configured yet. Run `/settings` first.',
+                ephemeral: true,
+            });
+            return null;
+        }
+
+        console.error('Error retrieving guild settings:', error);
+        await interaction.reply({
+            content: 'An error occurred while retrieving server settings. Please try again later.',
+            ephemeral: true,
+        });
+        return null;
+    }
+}
+
+async function addTrialRoleOrReply(
+    interaction: ChatInputCommandInteraction,
+    guild: NonNullable<ChatInputCommandInteraction['guild']>,
+    userId: string,
+    trialRoleId: string,
+) {
+    try {
+        const member = await guild.members.fetch(userId);
+        await member.roles.add(trialRoleId);
+        return true;
+    } catch (error) {
+        console.error('Error adding trial role:', error);
+        await interaction.reply({
+            content: 'Trial was created, but I could not add the trial role. Please check my role permissions.',
+            ephemeral: true,
+        });
+        return false;
+    }
+}
 
 
 // Starting a trial should create a new trial entry in the database and reply with a confirmation message. 
@@ -16,42 +87,63 @@ export default {
                 .setDescription('The user to start the trial for')
                 .setRequired(true)
         ),
-    async execute(interaction: ChatInputCommandInteraction, prisma: PrismaClient) {
-        const target = interaction.options.getUser('target');
+    async execute(interaction: ChatInputCommandInteraction, context: AppContext) {
+        const guildContext = await getValidatedGuildContext(interaction);
+        if (!guildContext) {
+            return;
+        }
+
+        const { guild, guildId } = guildContext;
+
+        const target = await getValidatedTarget(interaction);
+        if (!target) {
+            return;
+        }
+
+        const settings = await getSettingsOrReply(interaction, context, guildId);
+        if (!settings) {
+            return;
+        }
 
         try {
-            const activeTrial = await prisma.trial.findFirst({
-                where: {
-                    userId: target?.id || '',
-                },
-            });
+            const result = await startTrial(context.prisma, guildId, target.id, interaction.user.id);
 
-            if (activeTrial) {
-                await interaction.reply(`${target?.tag} already has an active trial.`);
+            if (!result.created) {
+                await interaction.reply({
+                    content: `${target.tag} already has an active trial in this server.`,
+                    ephemeral: true,
+                });
                 return;
             }
         } catch (error) {
-            console.error('Error checking for active trial:', error);
-            await interaction.reply('An error occurred while checking for active trials. Please try again later.');
-            return;
-        }
-
-        try {
-
-            await prisma.trial.create({
-                data: {
-                    userId: target?.id || '',
-                    active: true,
-                    startedById: interaction.user.id,
-                    startTime: new Date(),
-                },
-            });
-        } catch (error) {
             console.error('Error creating trial:', error);
-            await interaction.reply('An error occurred while starting the trial. Please try again later.');
+            await interaction.reply({
+                content: 'An error occurred while starting the trial. Please try again later.',
+                ephemeral: true,
+            });
             return;
         }
 
-        await interaction.reply(`Trial started for ${target?.tag}!`);
+        const roleUpdated = await addTrialRoleOrReply(interaction, guild, target.id, settings.trialRoleId);
+        if (!roleUpdated) {
+            return;
+        }
+
+        const displayName = await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
+        const message = `Trial started for ${displayName}!`;
+        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, message);
+
+        if (!sendResult.delivered) {
+            await interaction.reply({
+                content: 'Trial was started, but I could not send the update to the officer channel. Please check channel settings and permissions.',
+                ephemeral: true,
+            });
+            return;
+        }
+
+        await interaction.reply({
+            content: 'Posted start update in the officer channel.',
+            ephemeral: true,
+        });
     },
 };

@@ -14,18 +14,25 @@ datasource db {
 
 model Trial {
   id        Int        @id @default(autoincrement())
+  guildId   String
   userId    String
   startTime DateTime   @default(now())
   active    Boolean    @default(true)
   passed    Boolean?   @default(false)
   startedById String
   feedbacks Feedback[]
+
+  @@unique([guildId, userId, active])
+  @@index([guildId])
+  @@index([guildId, active])
+  @@index([guildId, userId])
 }
 
 model Feedback {
   id          Int      @id @default(autoincrement())
+  guildId     String
   trialId     Int
-  officerId   Int
+  officerId   String
   performance Int
   attitude    Int
   focus       Int
@@ -33,12 +40,15 @@ model Feedback {
   comments    String?
   createdAt   DateTime @default(now())
 
-  trial Trial @relation(fields: [trialId], references: [id])
+  trial Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@index([trialId])
 }
 
 model Settings { 
   id Int @id @default(autoincrement())
-  guildId String
+  guildId String @unique
   trialRoleId String
   raiderRoleId String
   officerChannelId String

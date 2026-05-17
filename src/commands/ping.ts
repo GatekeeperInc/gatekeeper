@@ -1,10 +1,54 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import type { DiscordClient } from '../DiscordClient.js';
-import type { PrismaClient } from '@prisma/client/extension';
+import type { AppContext } from '../types.js';
+import { GuildSettingsMissingError, getGuildSettings, sendOfficerChannelMessage } from '../services/guildSettings.js';
 
 export default {
     data: new SlashCommandBuilder().setName('ping').setDescription('Replies with Pong!'),
-    async execute(interaction: ChatInputCommandInteraction, _ : PrismaClient) {
-        await interaction.reply('Pong!');
+    async execute(interaction: ChatInputCommandInteraction, context: AppContext) {
+        const guildId = interaction.guildId;
+
+        if (!guildId) {
+            await interaction.reply({
+                content: 'This command can only be used in a server.',
+                ephemeral: true,
+            });
+            return;
+        }
+
+        let settings;
+
+        try {
+            settings = await getGuildSettings(context.prisma, guildId);
+        } catch (error) {
+            if (error instanceof GuildSettingsMissingError) {
+                await interaction.reply({
+                    content: 'Server settings have not been configured yet. Run `/settings` first.',
+                    ephemeral: true,
+                });
+                return;
+            }
+
+            console.error('Error retrieving guild settings:', error);
+            await interaction.reply({
+                content: 'An error occurred while retrieving server settings. Please try again later.',
+                ephemeral: true,
+            });
+            return;
+        }
+
+        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, 'Pong!');
+
+        if (!sendResult.delivered) {
+            await interaction.reply({
+                content: 'I could not send the ping response to the officer channel. Please check channel settings and permissions.',
+                ephemeral: true,
+            });
+            return;
+        }
+
+        await interaction.reply({
+            content: 'Posted ping response in the officer channel.',
+            ephemeral: true,
+        });
     },
 };

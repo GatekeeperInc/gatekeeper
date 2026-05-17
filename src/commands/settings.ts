@@ -7,7 +7,8 @@ import {
     UserSelectMenuBuilder,
     type ChatInputCommandInteraction,
 } from 'discord.js';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import type { AppContext } from '../types.js';
+import { findGuildSettings } from '../services/guildSettings.js';
 
 
 /* 
@@ -21,7 +22,7 @@ export default {
     data: new SlashCommandBuilder()
         .setName('settings')
         .setDescription('Allows moderators to adjust settings for the trial tracker'),
-    async execute(interaction: ChatInputCommandInteraction, prisma: PrismaClient) {
+    async execute(interaction: ChatInputCommandInteraction, context: AppContext) {
         const guildId = interaction.guildId;
 
         if (!guildId) {
@@ -32,9 +33,7 @@ export default {
             return;
         }
 
-        const settings = await prisma.settings.findFirst({
-            where: { guildId },
-        });
+        const settings = await findGuildSettings(context.prisma, guildId);
 
         const modal = new ModalBuilder()
             .setCustomId('settingsModal')
