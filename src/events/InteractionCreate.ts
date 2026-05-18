@@ -6,12 +6,15 @@ import {
 } from 'discord.js';
 import type { AppContext } from '../types.js';
 import { createFeedback, parseFeedbackModalCustomId } from '../services/feedbackService.js';
-import { saveGuildSettings } from '../services/guildSettings.js';
+import { saveGuildSettings, validateRaidReminderSettings } from '../services/guildSettings.js';
+import { refreshGuildRaidReminderSchedule } from '../services/raidReminderScheduler.js';
 
 async function handleSettingsModal(interaction: ModalSubmitInteraction, context: AppContext): Promise<void> {
     const officerChannelId = interaction.fields.getSelectedChannels('officerChannelId')?.first()?.id;
     const trialRoleId = interaction.fields.getSelectedRoles('trialRoleId')?.first()?.id;
     const raiderRoleId = interaction.fields.getSelectedRoles('raiderRoleId')?.first()?.id;
+    const raidScheduleCronRaw = interaction.fields.getTextInputValue('raidScheduleCron').trim();
+    const raidThresholdRaw = interaction.fields.getTextInputValue('raidAttendanceReminderThreshold').trim();
 
     if (!officerChannelId || !trialRoleId || !raiderRoleId) {
         await interaction.reply({ content: 'All fields are required', flags: ['Ephemeral'] });
@@ -23,12 +26,27 @@ async function handleSettingsModal(interaction: ModalSubmitInteraction, context:
         return;
     }
 
+    const raidThreshold = raidThresholdRaw.length === 0 ? null : Number(raidThresholdRaw);
+    const validation = validateRaidReminderSettings({
+        raidScheduleCron: raidScheduleCronRaw.length === 0 ? null : raidScheduleCronRaw,
+        raidAttendanceReminderThreshold: raidThreshold,
+    });
+
+    if (!validation.valid) {
+        await interaction.reply({ content: validation.reason, flags: ['Ephemeral'] });
+        return;
+    }
+
     await saveGuildSettings(context.prisma, {
         guildId: interaction.guildId,
         officerChannelId,
         trialRoleId,
         raiderRoleId,
+        raidScheduleCron: validation.normalizedCron,
+        raidAttendanceReminderThreshold: validation.normalizedThreshold,
     });
+
+    await refreshGuildRaidReminderSchedule(context, interaction.guildId);
 
     await interaction.reply({ content: 'Settings updated!', flags: ['Ephemeral'] });
 }

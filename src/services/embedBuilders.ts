@@ -36,6 +36,14 @@ export type RoleDebugEmbedInput = {
     configuredRaiderRoleMissingId?: string;
 };
 
+export type RaidAttendanceReminderEmbedInput = {
+    displayName: string;
+    userId: string;
+    trialId: number;
+    raidNightsAttended: number;
+    threshold: number;
+};
+
 function applyGatekeeperLogo(embed: EmbedBuilder, logoUrl?: string): EmbedBuilder {
     if (logoUrl) {
         embed.setThumbnail(logoUrl);
@@ -225,4 +233,24 @@ export function buildRoleDebugEmbed(input: RoleDebugEmbedInput, logoUrl?: string
     }
 
     return embed;
+}
+
+export function buildRaidAttendanceReminderEmbed(
+    input: RaidAttendanceReminderEmbedInput,
+    logoUrl?: string,
+): EmbedBuilder {
+    return applyGatekeeperLogo(
+        new EmbedBuilder()
+            .setColor(COLORS.info)
+            .setTitle('Trial Attendance Reminder')
+            .setDescription(`<@${input.userId}> has reached the raid attendance threshold.`)
+            .addFields(
+                { name: 'Member', value: input.displayName, inline: true },
+                { name: 'Raid Nights Attended', value: String(input.raidNightsAttended), inline: true },
+                { name: 'Threshold', value: String(input.threshold), inline: true },
+                { name: 'Trial ID', value: String(input.trialId), inline: false },
+            )
+            .setTimestamp(new Date()),
+        logoUrl,
+    );
 }

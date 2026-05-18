@@ -21,6 +21,7 @@ model Trial {
   passed    Boolean?   @default(false)
   startedById String
   feedbacks Feedback[]
+  attendanceReminderLogs AttendanceReminderLog[]
 
   @@unique([guildId, userId, active])
   @@index([guildId])
@@ -38,12 +39,15 @@ model Feedback {
   focus       Int
   late        Boolean
   comments    String?
+  raidAttendanceDate String?
   createdAt   DateTime @default(now())
 
   trial Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
 
   @@index([guildId])
   @@index([trialId])
+  @@index([guildId, trialId])
+  @@index([guildId, raidAttendanceDate])
 }
 
 model Settings { 
@@ -52,4 +56,22 @@ model Settings {
   trialRoleId String
   raiderRoleId String
   officerChannelId String
+  raidScheduleCron String?
+  raidAttendanceReminderThreshold Int?
+}
+
+model AttendanceReminderLog {
+  id Int @id @default(autoincrement())
+  guildId String
+  trialId Int
+  userId String
+  reminderDate String
+  attendanceCount Int
+  createdAt DateTime @default(now())
+
+  trial Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, trialId, userId, reminderDate])
+  @@index([guildId, reminderDate])
+  @@index([guildId, userId])
 }

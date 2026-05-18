@@ -59,6 +59,19 @@ export type MemberFeedbackSummaryResult =
     | { outcome: 'no_feedback'; trialId: number }
     | { outcome: 'summary'; summary: MemberFeedbackSummary };
 
+export type ActiveTrialAttendance = {
+    trialId: number;
+    userId: string;
+    raidNightsAttended: number;
+};
+
+function toLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function roundToSingleDecimal(value: number): number {
     return Number(value.toFixed(1));
 }
@@ -155,8 +168,65 @@ export async function createFeedback(
             focus: input.focus,
             late: input.late,
             comments: input.comments ?? null,
+            raidAttendanceDate: toLocalDateKey(new Date()),
         },
     });
 
     return { created: true, feedback };
+}
+
+export async function listActiveTrialAttendance(
+    prisma: PrismaClient,
+    guildId: string,
+): Promise<ActiveTrialAttendance[]> {
+    const activeTrials = await prisma.trial.findMany({
+        where: {
+            guildId,
+            active: true,
+        },
+        select: {
+            id: true,
+            userId: true,
+        },
+    });
+
+    if (activeTrials.length === 0) {
+        return [];
+    }
+
+    const trialUserMap = new Map<number, string>();
+    const activeTrialIds = activeTrials.map(trial => {
+        trialUserMap.set(trial.id, trial.userId);
+        return trial.id;
+    });
+
+    const feedbackRows = await prisma.feedback.findMany({
+        where: {
+            guildId,
+            trialId: {
+                in: activeTrialIds,
+            },
+        },
+        select: {
+            trialId: true,
+            raidAttendanceDate: true,
+            createdAt: true,
+        },
+    });
+
+    const attendanceByTrial = new Map<number, Set<string>>();
+
+    for (const row of feedbackRows) {
+        const attendanceDate = row.raidAttendanceDate ?? toLocalDateKey(row.createdAt);
+
+        const dates = attendanceByTrial.get(row.trialId) ?? new Set<string>();
+        dates.add(attendanceDate);
+        attendanceByTrial.set(row.trialId, dates);
+    }
+
+    return activeTrials.map(trial => ({
+        trialId: trial.id,
+        userId: trial.userId,
+        raidNightsAttended: attendanceByTrial.get(trial.id)?.size ?? 0,
+    }));
 }

@@ -4,6 +4,8 @@ import {
     ModalBuilder,
     RoleSelectMenuBuilder,
     SlashCommandBuilder,
+    TextInputBuilder,
+    TextInputStyle,
     UserSelectMenuBuilder,
     type ChatInputCommandInteraction,
 } from 'discord.js';
@@ -73,7 +75,35 @@ export default {
             .setLabel('Trial Role')
             .setRoleSelectMenuComponent(trialRoleInput);
 
-        modal.addLabelComponents(officerChannelLabel, raiderRoleLabel, trialRoleLabel);
+        const raidScheduleCronInput = new TextInputBuilder()
+            .setCustomId('raidScheduleCron')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Example: 0 19 * * 2,4,6')
+            .setValue(settings?.raidScheduleCron ?? '')
+            .setRequired(false);
+
+        const raidScheduleCronLabel = new LabelBuilder()
+            .setLabel('Raid Schedule (Cron)')
+            .setTextInputComponent(raidScheduleCronInput);
+
+        const raidThresholdInput = new TextInputBuilder()
+            .setCustomId('raidAttendanceReminderThreshold')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Example: 4')
+            .setValue(settings?.raidAttendanceReminderThreshold?.toString() ?? '')
+            .setRequired(false);
+
+        const raidThresholdLabel = new LabelBuilder()
+            .setLabel('Attendance Reminder Threshold')
+            .setTextInputComponent(raidThresholdInput);
+
+        modal.addLabelComponents(
+            officerChannelLabel,
+            raiderRoleLabel,
+            trialRoleLabel,
+            raidScheduleCronLabel,
+            raidThresholdLabel,
+        );
 
         await interaction.showModal(modal);
 

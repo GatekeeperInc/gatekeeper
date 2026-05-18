@@ -61,7 +61,7 @@ export default {
 
         const botHighestRolePosition = getBotHighestRolePosition(interaction);
         const managedRoleCount = guild.roles.cache.filter(role => role.managed).size;
-        const logoUrl = context.client.user.displayAvatarURL({ extension: 'png', size: 256 });
+        const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
 
         if (roleToInspect) {
             const embed = buildRoleDebugEmbed({

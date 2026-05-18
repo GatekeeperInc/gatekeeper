@@ -1,6 +1,7 @@
 import type { PrismaClient, Settings } from '../generated/prisma/client.js';
 import type { DiscordClient } from '../DiscordClient.js';
 import type { APIEmbed } from 'discord.js';
+import cron from 'node-cron';
 
 export class GuildSettingsMissingError extends Error {
     constructor(guildId: string) {
@@ -32,6 +33,8 @@ export async function saveGuildSettings(
         officerChannelId: string;
         trialRoleId: string;
         raiderRoleId: string;
+        raidScheduleCron?: string | null;
+        raidAttendanceReminderThreshold?: number | null;
     },
 ): Promise<Settings> {
     return prisma.settings.upsert({
@@ -40,9 +43,67 @@ export async function saveGuildSettings(
             officerChannelId: settings.officerChannelId,
             trialRoleId: settings.trialRoleId,
             raiderRoleId: settings.raiderRoleId,
+            raidScheduleCron: settings.raidScheduleCron ?? null,
+            raidAttendanceReminderThreshold: settings.raidAttendanceReminderThreshold ?? null,
         },
         create: settings,
     });
+}
+
+export type RaidReminderSettingsValidationInput = {
+    raidScheduleCron?: string | null;
+    raidAttendanceReminderThreshold?: number | null;
+};
+
+export type RaidReminderSettingsValidationResult =
+    | { valid: true; normalizedCron: string | null; normalizedThreshold: number | null }
+    | { valid: false; reason: string };
+
+export function validateRaidReminderSettings(
+    input: RaidReminderSettingsValidationInput,
+): RaidReminderSettingsValidationResult {
+    const rawCron = input.raidScheduleCron?.trim() ?? '';
+    const hasCron = rawCron.length > 0;
+    const threshold = input.raidAttendanceReminderThreshold ?? null;
+    const hasThreshold = threshold !== null;
+
+    if (hasCron !== hasThreshold) {
+        return {
+            valid: false,
+            reason: 'Set both raid schedule and attendance threshold, or leave both empty.',
+        };
+    }
+
+    if (!hasCron && !hasThreshold) {
+        return { valid: true, normalizedCron: null, normalizedThreshold: null };
+    }
+
+    if (!cron.validate(rawCron)) {
+        return {
+            valid: false,
+            reason: 'Raid schedule must be a valid cron expression.',
+        };
+    }
+
+    if (threshold === null) {
+        return {
+            valid: false,
+            reason: 'Attendance reminder threshold is required when raid schedule is set.',
+        };
+    }
+
+    if (!Number.isInteger(threshold) || threshold < 1 || threshold > 50) {
+        return {
+            valid: false,
+            reason: 'Attendance reminder threshold must be a whole number from 1 to 50.',
+        };
+    }
+
+    return {
+        valid: true,
+        normalizedCron: rawCron,
+        normalizedThreshold: threshold,
+    };
 }
 
 export type OfficerChannelMessageResult =
