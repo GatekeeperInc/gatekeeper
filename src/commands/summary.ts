@@ -3,6 +3,8 @@ import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
 import { buildFeedbackSummaryEmbed } from '../services/embedBuilders.js';
 import { getMemberFeedbackSummary } from '../services/feedbackService.js';
+import { createGuildLogger } from '../services/logger.js';
+import { projectTrialExpectedEndDate } from '../services/trialService.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -37,7 +39,7 @@ export default {
                 return;
             }
 
-            console.error('Error retrieving guild settings:', error);
+            createGuildLogger(guildId).error({ err: error }, 'Error retrieving guild settings.');
             await interaction.reply({
                 content: 'An error occurred while retrieving server settings. Please try again later.',
                 ephemeral: true,
@@ -57,8 +59,24 @@ export default {
         try {
             const displayName = await resolveGuildDisplayName(context.client, guildId, member.id, member.displayName);
             const result = await getMemberFeedbackSummary(context.prisma, guildId, member.id);
+
+            if (result.outcome === 'no_active_trial') {
+                createGuildLogger(guildId).info({ memberId: member.id }, 'Summary requested but no active trial found.');
+            } else if (result.outcome === 'no_feedback') {
+                createGuildLogger(guildId).info({ memberId: member.id, trialId: result.trialId }, 'Summary requested but no feedback yet.');
+            } else {
+                createGuildLogger(guildId).info({ memberId: member.id, trialId: result.summary.trialId, feedbackCount: result.summary.feedbackCount }, 'Summary retrieved.');
+            }
+
+            const expectedCompletionDate = result.outcome === 'no_active_trial'
+                ? null
+                : projectTrialExpectedEndDate(
+                    result.outcome === 'no_feedback' ? result.trialStartTime : result.summary.trialStartTime,
+                    settings.raidScheduleCron,
+                    settings.raidAttendanceReminderThreshold,
+                );
             const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
-            const embed = buildFeedbackSummaryEmbed(displayName, result, logoUrl);
+            const embed = buildFeedbackSummaryEmbed(displayName, result, expectedCompletionDate, logoUrl);
 
             const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, {
                 embeds: [embed.toJSON()],
@@ -77,7 +95,7 @@ export default {
                 ephemeral: true,
             });
         } catch (error) {
-            console.error('Error retrieving trial feedback summary:', error);
+            createGuildLogger(guildId).error({ memberId: member.id, err: error }, 'Error retrieving trial feedback summary.');
             await interaction.reply({
                 content: 'An error occurred while retrieving the trial feedback summary. Please try again later.',
                 ephemeral: true,

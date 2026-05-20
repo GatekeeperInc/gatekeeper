@@ -1,6 +1,7 @@
 import { Client, type ClientOptions } from "discord.js";
 import type { PrismaClient } from "./generated/prisma/client.js";
 import type { AppContext, Command, Event } from "./types.js";
+import { logger } from "./services/logger.js";
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -35,12 +36,12 @@ export class DiscordClient extends Client {
 
                 if (command.data?.name && typeof command.execute === 'function') {
                     this.commands.set(command.data.name, command);
-                    console.log(`Loaded command: ${command.data.name}`);
+                    logger.info({ command: command.data.name }, `Loaded command: ${command.data.name}`);
                 } else {
-                    console.warn(`Skipping invalid command file: ${file}`);
+                    logger.warn({ file }, `Skipping invalid command file: ${file}`);
                 }
             } catch (error) {
-                console.error(`Error loading command ${file}:`, error);
+                logger.error({ file, err: error }, `Error loading command ${file}`);
             }
         }
     }
@@ -62,12 +63,12 @@ export class DiscordClient extends Client {
                     } else {
                         this.on(event.name, (...args) => event.execute(args[0], this.context));
                     }
-                    console.log(`Loaded event: ${event.name}`);
+                    logger.info({ event: event.name }, `Loaded event: ${event.name}`);
                 } else {
-                    console.warn(`Skipping invalid event file: ${file}`);
+                    logger.warn({ file }, `Skipping invalid event file: ${file}`);
                 }
             } catch (error) {
-                console.error(`Error loading event ${file}:`, error);
+                logger.error({ file, err: error }, `Error loading event ${file}`);
             }
         }
     }

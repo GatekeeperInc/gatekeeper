@@ -6,6 +6,7 @@ const COLORS = {
     success: 0x2f855a,
     warning: 0xb7791f,
     debug: 0xc05621,
+    danger: 0xc53030,
 };
 
 const MAX_TRIALS_PER_EMBED = 10;
@@ -42,6 +43,15 @@ export type RaidAttendanceReminderEmbedInput = {
     trialId: number;
     raidNightsAttended: number;
     threshold: number;
+};
+
+export type TrialLifecycleEmbedInput = {
+    memberDisplayName: string;
+    memberId: string;
+    officerDisplayName: string;
+    officerId: string;
+    startedAt: Date;
+    expectedCompletionDate?: Date | null;
 };
 
 export type TrialVotePollEmbedInput = {
@@ -134,6 +144,7 @@ export function buildTrialListEmbeds(items: TrialListItem[], activeOnly: boolean
 export function buildFeedbackSummaryEmbed(
     displayName: string,
     result: MemberFeedbackSummaryResult,
+    expectedCompletionDate: Date | null,
     logoUrl?: string,
 ): EmbedBuilder {
     if (result.outcome === 'no_active_trial') {
@@ -153,6 +164,13 @@ export function buildFeedbackSummaryEmbed(
                 .setColor(COLORS.warning)
                 .setTitle('Trial Feedback Summary')
                 .setDescription(`An active trial exists for **${displayName}**, but no feedback has been submitted yet.`)
+                .addFields({
+                    name: 'Expected Completion (Projected)',
+                    value: expectedCompletionDate
+                        ? formatDiscordTimestamp(expectedCompletionDate)
+                        : 'Unavailable (raid schedule or threshold not configured).',
+                    inline: false,
+                })
                 .setFooter({ text: `Trial ID: ${result.trialId}` })
                 .setTimestamp(new Date()),
             logoUrl,
@@ -176,6 +194,13 @@ export function buildFeedbackSummaryEmbed(
                 { name: 'Performance', value: `${result.summary.averages.performance}/5`, inline: true },
                 { name: 'Attitude', value: `${result.summary.averages.attitude}/5`, inline: true },
                 { name: 'Focus', value: `${result.summary.averages.focus}/5`, inline: true },
+                {
+                    name: 'Expected Completion (Projected)',
+                    value: expectedCompletionDate
+                        ? formatDiscordTimestamp(expectedCompletionDate)
+                        : 'Unavailable (raid schedule or threshold not configured).',
+                    inline: false,
+                },
                 { name: 'Recent Comments', value: comments, inline: false },
             )
             .setFooter({ text: `Trial ID: ${result.summary.trialId}` })
@@ -261,6 +286,66 @@ export function buildRaidAttendanceReminderEmbed(
                 { name: 'Raid Nights Attended', value: String(input.raidNightsAttended), inline: true },
                 { name: 'Threshold', value: String(input.threshold), inline: true },
                 { name: 'Trial ID', value: String(input.trialId), inline: false },
+            )
+            .setTimestamp(new Date()),
+        logoUrl,
+    );
+}
+
+export function buildTrialStartedEmbed(
+    input: TrialLifecycleEmbedInput,
+    logoUrl?: string,
+): EmbedBuilder {
+    return applyGatekeeperLogo(
+        new EmbedBuilder()
+            .setColor(COLORS.info)
+            .setTitle('Trial Started')
+            .setDescription(`<@${input.memberId}> has started a trial.`)
+            .addFields(
+                { name: 'Member', value: `${input.memberDisplayName} (<@${input.memberId}>)`, inline: false },
+                { name: 'Officer', value: `${input.officerDisplayName} (<@${input.officerId}>)`, inline: false },
+                { name: 'Started', value: formatDiscordTimestamp(input.startedAt), inline: true },
+                {
+                    name: 'Expected Completion (Projected)',
+                    value: input.expectedCompletionDate
+                        ? formatDiscordTimestamp(input.expectedCompletionDate)
+                        : 'Unavailable (raid schedule or threshold not configured).',
+                    inline: true,
+                },
+                {
+                    name: 'Reminder',
+                    value: 'Officers: leave `/feedback` after each attended raid to keep this trial on track.',
+                    inline: false,
+                },
+            )
+            .setTimestamp(new Date()),
+        logoUrl,
+    );
+}
+
+export function buildTrialResolvedEmbed(
+    outcome: 'passed' | 'failed',
+    input: TrialLifecycleEmbedInput,
+    logoUrl?: string,
+): EmbedBuilder {
+    const isPassed = outcome === 'passed';
+
+    return applyGatekeeperLogo(
+        new EmbedBuilder()
+            .setColor(isPassed ? COLORS.success : COLORS.danger)
+            .setTitle(isPassed ? 'Trial Passed' : 'Trial Failed')
+            .setDescription(`<@${input.memberId}> has ${isPassed ? 'passed' : 'failed'} their trial.`)
+            .addFields(
+                { name: 'Member', value: `${input.memberDisplayName} (<@${input.memberId}>)`, inline: false },
+                { name: 'Officer', value: `${input.officerDisplayName} (<@${input.officerId}>)`, inline: false },
+                { name: 'Started', value: formatDiscordTimestamp(input.startedAt), inline: true },
+                {
+                    name: 'Expected Completion (Projected)',
+                    value: input.expectedCompletionDate
+                        ? formatDiscordTimestamp(input.expectedCompletionDate)
+                        : 'Unavailable (raid schedule or threshold not configured).',
+                    inline: true,
+                },
             )
             .setTimestamp(new Date()),
         logoUrl,

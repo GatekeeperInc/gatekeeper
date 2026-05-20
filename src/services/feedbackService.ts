@@ -1,4 +1,5 @@
 import type { Feedback, PrismaClient } from '../generated/prisma/client.js';
+import { createGuildLogger } from './logger.js';
 
 const FEEDBACK_MODAL_PREFIX = 'feedbackModal';
 
@@ -48,6 +49,7 @@ type FeedbackAverages = {
 
 export type MemberFeedbackSummary = {
     trialId: number;
+    trialStartTime: Date;
     feedbackCount: number;
     averages: FeedbackAverages;
     lateCount: number;
@@ -56,7 +58,7 @@ export type MemberFeedbackSummary = {
 
 export type MemberFeedbackSummaryResult =
     | { outcome: 'no_active_trial' }
-    | { outcome: 'no_feedback'; trialId: number }
+    | { outcome: 'no_feedback'; trialId: number; trialStartTime: Date }
     | { outcome: 'summary'; summary: MemberFeedbackSummary };
 
 export type ActiveTrialAttendance = {
@@ -117,7 +119,7 @@ export async function getMemberFeedbackSummary(
     });
 
     if (feedbacks.length === 0) {
-        return { outcome: 'no_feedback', trialId: activeTrial.id };
+        return { outcome: 'no_feedback', trialId: activeTrial.id, trialStartTime: activeTrial.startTime };
     }
 
     const lateCount = feedbacks.filter(feedback => feedback.late).length;
@@ -130,6 +132,7 @@ export async function getMemberFeedbackSummary(
         outcome: 'summary',
         summary: {
             trialId: activeTrial.id,
+            trialStartTime: activeTrial.startTime,
             feedbackCount: feedbacks.length,
             averages: calculateAverages(feedbacks),
             lateCount,
@@ -142,6 +145,7 @@ export async function createFeedback(
     prisma: PrismaClient,
     input: CreateFeedbackInput,
 ): Promise<{ created: boolean; feedback?: Feedback; reason?: 'trial_not_found' | 'trial_not_active' }> {
+    const log = createGuildLogger(input.guildId);
     const trial = await prisma.trial.findFirst({
         where: {
             id: input.trialId,
@@ -151,10 +155,12 @@ export async function createFeedback(
     });
 
     if (!trial) {
+        log.warn({ trialId: input.trialId, targetId: input.targetId }, 'createFeedback: trial not found.');
         return { created: false, reason: 'trial_not_found' };
     }
 
     if (!trial.active) {
+        log.warn({ trialId: input.trialId, targetId: input.targetId }, 'createFeedback: trial is no longer active.');
         return { created: false, reason: 'trial_not_active' };
     }
 
@@ -172,6 +178,7 @@ export async function createFeedback(
         },
     });
 
+    log.info({ trialId: input.trialId, officerId: input.officerId, feedbackId: feedback.id }, 'createFeedback: feedback saved.');
     return { created: true, feedback };
 }
 

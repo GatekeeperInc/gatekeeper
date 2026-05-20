@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, sendOfficerChannelMessage } from '../services/guildSettings.js';
+import { createGuildLogger } from '../services/logger.js';
 
 export default {
     data: new SlashCommandBuilder().setName('ping').setDescription('Replies with Pong!'),
@@ -28,7 +29,7 @@ export default {
                 return;
             }
 
-            console.error('Error retrieving guild settings:', error);
+            createGuildLogger(guildId).error({ err: error }, 'Error retrieving guild settings.');
             await interaction.reply({
                 content: 'An error occurred while retrieving server settings. Please try again later.',
                 ephemeral: true,
@@ -39,6 +40,7 @@ export default {
         const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, 'Pong!');
 
         if (!sendResult.delivered) {
+            createGuildLogger(guildId).warn({ reason: sendResult.reason }, 'Ping: failed to deliver to officer channel.');
             await interaction.reply({
                 content: 'I could not send the ping response to the officer channel. Please check channel settings and permissions.',
                 ephemeral: true,

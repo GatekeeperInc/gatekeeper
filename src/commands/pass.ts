@@ -1,7 +1,9 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
-import { resolveTrial } from '../services/trialService.js';
+import { buildTrialResolvedEmbed } from '../services/embedBuilders.js';
+import { projectTrialExpectedEndDate, resolveTrial } from '../services/trialService.js';
+import { createGuildLogger, audit } from '../services/logger.js';
 
 async function getValidatedTarget(interaction: ChatInputCommandInteraction) {
     const target = interaction.options.getUser('target');
@@ -43,7 +45,7 @@ async function getSettingsOrReply(interaction: ChatInputCommandInteraction, cont
             return null;
         }
 
-        console.error('Error retrieving guild settings:', error);
+        createGuildLogger(guildId).error({ err: error }, 'Error retrieving guild settings.');
         await interaction.reply({
             content: 'An error occurred while retrieving server settings. Please try again later.',
             ephemeral: true,
@@ -65,7 +67,7 @@ async function updateRolesOrReply(
         await member.roles.add(raiderRoleId);
         return true;
     } catch (error) {
-        console.error('Error updating member roles:', error);
+        createGuildLogger(guild.id).error({ userId, trialRoleId, raiderRoleId, err: error }, 'Error updating member roles on pass.');
         await interaction.reply({
             content: 'Trial was passed, but I could not update the member roles. Please check my role permissions.',
             ephemeral: true,
@@ -93,6 +95,7 @@ export default {
         }
 
         const { guild, guildId } = guildContext;
+        const log = createGuildLogger(guildId);
 
         const target = await getValidatedTarget(interaction);
         if (!target) {
@@ -104,17 +107,23 @@ export default {
             return;
         }
 
+        let resolvedTrialStartTime: Date | null = null;
+
         try {
             const result = await resolveTrial(context.prisma, guildId, target.id, true);
             if (!result.updated) {
+                log.info({ targetId: target.id }, 'Pass rejected: no active trial found.');
                 await interaction.reply({
                     content: `No active trial found for ${target.tag}.`,
                     ephemeral: true,
                 });
                 return;
             }
+            log.info({ targetId: target.id, trialId: result.trialId }, 'Trial marked as passed.');
+            audit(guildId, 'trial.passed', interaction.user.id, { targetId: target.id, trialId: result.trialId });
+            resolvedTrialStartTime = result.startTime ?? null;
         } catch (error) {
-            console.error('Error updating trial:', error);
+            log.error({ targetId: target.id, err: error }, 'Error passing trial.');
             await interaction.reply({
                 content: 'An error occurred while passing the trial. Please try again later.',
                 ephemeral: true,
@@ -134,8 +143,22 @@ export default {
         }
 
         const displayName = await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
-        const message = `Trial passed for ${displayName}!`;
-        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, message);
+        const officerDisplayName = await resolveGuildDisplayName(context.client, guildId, interaction.user.id, interaction.user.username);
+        const projectedEndDate = resolvedTrialStartTime
+            ? projectTrialExpectedEndDate(resolvedTrialStartTime, settings.raidScheduleCron, settings.raidAttendanceReminderThreshold)
+            : null;
+        const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
+        const embed = buildTrialResolvedEmbed('passed', {
+            memberDisplayName: displayName,
+            memberId: target.id,
+            officerDisplayName,
+            officerId: interaction.user.id,
+            startedAt: resolvedTrialStartTime ?? new Date(),
+            expectedCompletionDate: projectedEndDate,
+        }, logoUrl);
+        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, {
+            embeds: [embed.toJSON()],
+        });
 
         if (!sendResult.delivered) {
             await interaction.reply({

@@ -11,6 +11,7 @@ import type { AppContext } from '../types.js';
 import { buildFeedbackModalCustomId } from '../services/feedbackService.js';
 import { findActiveTrial } from '../services/trialService.js';
 import { resolveGuildDisplayName } from '../services/guildSettings.js';
+import { createGuildLogger } from '../services/logger.js';
 
 /* 
     This form collects feedback from officers about a trial's performance 
@@ -64,6 +65,7 @@ export default {
 
         const activeTrial = await findActiveTrial(context.prisma, interaction.guildId, target.id);
         if (!activeTrial) {
+            createGuildLogger(interaction.guildId).info({ targetId: target.id }, 'Feedback rejected: no active trial found.');
             await interaction.reply({
                 content: `No active trial found for ${target.tag}.`,
                 ephemeral: true,
@@ -71,7 +73,7 @@ export default {
             return;
         }
 
-        console.log(`Feedback command invoked for target: ${target?.tag}`);
+        createGuildLogger(interaction.guildId).info({ targetId: target.id, trialId: activeTrial.id, officerId: interaction.user.id }, 'Feedback modal opened.');
 
         const displayName = await resolveGuildDisplayName(context.client, interaction.guildId, target.id, target.displayName);
         const modal = new ModalBuilder()
@@ -119,7 +121,7 @@ export default {
             .setTextInputComponent(focusInput);
 
         const lateLabel = new LabelBuilder()
-            .setLabel('Late (Y/N)')
+            .setLabel('Was this trial late to raid?')
             .setCheckboxComponent(lateInput);
 
         const commentsLabel = new LabelBuilder()

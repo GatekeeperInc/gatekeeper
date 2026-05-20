@@ -1,17 +1,21 @@
 import type { PrismaClient, Trial } from '../generated/prisma/client.js';
+import { CronExpressionParser } from 'cron-parser';
+import { createGuildLogger } from './logger.js';
 
 export async function findActiveTrial(
     prisma: PrismaClient,
     guildId: string,
     userId: string,
 ): Promise<Trial | null> {
-    return prisma.trial.findFirst({
+    const trial = await prisma.trial.findFirst({
         where: {
             guildId,
             userId,
             active: true,
         },
     });
+    createGuildLogger(guildId).info({ userId, found: trial !== null }, 'findActiveTrial');
+    return trial;
 }
 
 export async function startTrial(
@@ -20,8 +24,10 @@ export async function startTrial(
     userId: string,
     startedById: string,
 ): Promise<{ created: boolean; trial?: Trial }> {
+    const log = createGuildLogger(guildId);
     const existingTrial = await findActiveTrial(prisma, guildId, userId);
     if (existingTrial) {
+        log.info({ userId }, 'startTrial: user already has an active trial.');
         return { created: false, trial: existingTrial };
     }
 
@@ -35,6 +41,7 @@ export async function startTrial(
         },
     });
 
+    log.info({ userId, trialId: trial.id }, 'startTrial: trial created.');
     return { created: true, trial };
 }
 
@@ -43,9 +50,11 @@ export async function resolveTrial(
     guildId: string,
     userId: string,
     passed: boolean,
-): Promise<{ updated: boolean; trialId?: number }> {
+): Promise<{ updated: boolean; trialId?: number; startTime?: Date }> {
+    const log = createGuildLogger(guildId);
     const activeTrial = await findActiveTrial(prisma, guildId, userId);
     if (!activeTrial) {
+        log.info({ userId }, 'resolveTrial: no active trial found.');
         return { updated: false };
     }
 
@@ -57,7 +66,34 @@ export async function resolveTrial(
         },
     });
 
-    return { updated: true, trialId: activeTrial.id };
+    log.info({ userId, trialId: activeTrial.id, passed }, 'resolveTrial: trial resolved.');
+    return { updated: true, trialId: activeTrial.id, startTime: activeTrial.startTime };
+}
+
+export function projectTrialExpectedEndDate(
+    trialStartTime: Date,
+    raidScheduleCron?: string | null,
+    raidAttendanceReminderThreshold?: number | null,
+): Date | null {
+    if (!raidScheduleCron || !raidAttendanceReminderThreshold || raidAttendanceReminderThreshold < 1) {
+        return null;
+    }
+
+    try {
+        const schedule = CronExpressionParser.parse(raidScheduleCron, {
+            currentDate: trialStartTime,
+        });
+
+        let projectedDate: Date | null = null;
+
+        for (let index = 0; index < raidAttendanceReminderThreshold; index += 1) {
+            projectedDate = schedule.next().toDate();
+        }
+
+        return projectedDate;
+    } catch {
+        return null;
+    }
 }
 
 export async function listTrials(
@@ -65,7 +101,7 @@ export async function listTrials(
     guildId: string,
     active: boolean,
 ): Promise<Trial[]> {
-    return prisma.trial.findMany({
+    const trials = await prisma.trial.findMany({
         where: {
             guildId,
             active,
@@ -74,4 +110,6 @@ export async function listTrials(
             startTime: 'desc',
         },
     });
+    createGuildLogger(guildId).info({ active, count: trials.length }, 'listTrials: fetched trials.');
+    return trials;
 }
