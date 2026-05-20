@@ -8,6 +8,7 @@ import type { AppContext } from '../types.js';
 import { createFeedback, parseFeedbackModalCustomId } from '../services/feedbackService.js';
 import { saveGuildSettings, validateRaidReminderSettings } from '../services/guildSettings.js';
 import { refreshGuildRaidReminderSchedule } from '../services/raidReminderScheduler.js';
+import { logger, audit } from '../services/logger.js';
 
 async function handleSettingsModal(interaction: ModalSubmitInteraction, context: AppContext): Promise<void> {
     const officerChannelId = interaction.fields.getSelectedChannels('officerChannelId')?.first()?.id;
@@ -47,6 +48,14 @@ async function handleSettingsModal(interaction: ModalSubmitInteraction, context:
     });
 
     await refreshGuildRaidReminderSchedule(context, interaction.guildId);
+
+    audit(interaction.guildId, 'settings.updated', interaction.user.id, {
+        officerChannelId,
+        trialRoleId,
+        raiderRoleId,
+        raidScheduleCron: validation.normalizedCron,
+        raidAttendanceReminderThreshold: validation.normalizedThreshold,
+    });
 
     await interaction.reply({ content: 'Settings updated!', flags: ['Ephemeral'] });
 }
@@ -93,9 +102,19 @@ async function handleFeedbackModal(interaction: ModalSubmitInteraction, context:
             ? 'This trial is no longer active. Feedback was not saved.'
             : 'Trial not found for this server. Feedback was not saved.';
 
+        logger.warn(
+            { guildId: interaction.guildId, trialId: feedbackContext.trialId, officerId: interaction.user.id, reason: result.reason },
+            'Feedback submission rejected.',
+        );
+
         await interaction.reply({ content, flags: ['Ephemeral'] });
         return;
     }
+
+    audit(interaction.guildId, 'feedback.submitted', interaction.user.id, {
+        trialId: feedbackContext.trialId,
+        targetId: feedbackContext.targetId,
+    });
 
     await interaction.reply({ content: 'Feedback received and saved. Thank you!', flags: ['Ephemeral'] });
 }
@@ -104,15 +123,16 @@ async function handleChatCommand(interaction: ChatInputCommandInteraction, conte
     const command = context.getCommand(interaction.commandName);
 
     if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
+        logger.error({ command: interaction.commandName, guildId: interaction.guildId }, 'No handler found for command.');
         return;
     }
+
+    logger.info({ command: interaction.commandName, guildId: interaction.guildId, userId: interaction.user.id }, 'Executing command.');
 
     try {
         await command.execute(interaction, context);
     } catch (error) {
-        console.error(`Error executing ${interaction.commandName}`);
-        console.error(error);
+        logger.error({ command: interaction.commandName, guildId: interaction.guildId, err: error }, 'Unhandled error executing command.');
     }
 }
 

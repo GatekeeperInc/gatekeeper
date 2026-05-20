@@ -2,6 +2,7 @@ import { SlashCommandBuilder, type APIRole, type ChatInputCommandInteraction, ty
 import type { AppContext } from '../types.js';
 import { buildRoleDebugEmbed, type RoleDebugRoleSnapshot } from '../services/embedBuilders.js';
 import { findGuildSettings } from '../services/guildSettings.js';
+import { createGuildLogger } from '../services/logger.js';
 
 function toRoleSnapshot(role: Role | APIRole, botHighestRolePosition: number): RoleDebugRoleSnapshot {
     const isGuildRole = 'editable' in role;
@@ -59,6 +60,9 @@ export default {
         const fromId = roleId ? await guild.roles.fetch(roleId) : null;
         const roleToInspect = selectedRole ?? fromId;
 
+        const log = createGuildLogger(guildId);
+        log.info({ userId: interaction.user.id, inspectedRoleId: roleToInspect?.id ?? null }, 'Role debug executed.');
+
         const botHighestRolePosition = getBotHighestRolePosition(interaction);
         const managedRoleCount = guild.roles.cache.filter(role => role.managed).size;
         const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
@@ -99,12 +103,14 @@ export default {
         if (trialRole) {
             embedInput.configuredTrialRole = toRoleSnapshot(trialRole, botHighestRolePosition);
         } else if (settings) {
+            log.warn({ trialRoleId: settings.trialRoleId }, 'Configured trial role not found in guild.');
             embedInput.configuredTrialRoleMissingId = settings.trialRoleId;
         }
 
         if (raiderRole) {
             embedInput.configuredRaiderRole = toRoleSnapshot(raiderRole, botHighestRolePosition);
         } else if (settings) {
+            log.warn({ raiderRoleId: settings.raiderRoleId }, 'Configured raider role not found in guild.');
             embedInput.configuredRaiderRoleMissingId = settings.raiderRoleId;
         }
 

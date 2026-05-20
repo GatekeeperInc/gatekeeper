@@ -11,6 +11,7 @@ import {
 } from 'discord.js';
 import type { AppContext } from '../types.js';
 import { findGuildSettings } from '../services/guildSettings.js';
+import { createGuildLogger } from '../services/logger.js';
 
 
 /* 
@@ -36,6 +37,8 @@ export default {
         }
 
         const settings = await findGuildSettings(context.prisma, guildId);
+
+        createGuildLogger(guildId).info({ userId: interaction.user.id }, 'Settings modal opened.');
 
         const modal = new ModalBuilder()
             .setCustomId('settingsModal')

@@ -1,4 +1,5 @@
 import type { Feedback, PrismaClient } from '../generated/prisma/client.js';
+import { createGuildLogger } from './logger.js';
 
 const FEEDBACK_MODAL_PREFIX = 'feedbackModal';
 
@@ -142,6 +143,7 @@ export async function createFeedback(
     prisma: PrismaClient,
     input: CreateFeedbackInput,
 ): Promise<{ created: boolean; feedback?: Feedback; reason?: 'trial_not_found' | 'trial_not_active' }> {
+    const log = createGuildLogger(input.guildId);
     const trial = await prisma.trial.findFirst({
         where: {
             id: input.trialId,
@@ -151,10 +153,12 @@ export async function createFeedback(
     });
 
     if (!trial) {
+        log.warn({ trialId: input.trialId, targetId: input.targetId }, 'createFeedback: trial not found.');
         return { created: false, reason: 'trial_not_found' };
     }
 
     if (!trial.active) {
+        log.warn({ trialId: input.trialId, targetId: input.targetId }, 'createFeedback: trial is no longer active.');
         return { created: false, reason: 'trial_not_active' };
     }
 
@@ -172,6 +176,7 @@ export async function createFeedback(
         },
     });
 
+    log.info({ trialId: input.trialId, officerId: input.officerId, feedbackId: feedback.id }, 'createFeedback: feedback saved.');
     return { created: true, feedback };
 }
 

@@ -2,6 +2,7 @@ import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.j
 import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
 import { resolveTrial } from '../services/trialService.js';
+import { createGuildLogger, audit } from '../services/logger.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -24,6 +25,8 @@ export default {
             return;
         }
 
+        const log = createGuildLogger(interaction.guildId);
+
         if (!target) {
             await interaction.reply({
                 content: 'Target user is required.',
@@ -45,7 +48,7 @@ export default {
                 return;
             }
 
-            console.error('Error retrieving guild settings:', error);
+            log.error({ err: error }, 'Error retrieving guild settings.');
             await interaction.reply({
                 content: 'An error occurred while retrieving server settings. Please try again later.',
                 ephemeral: true,
@@ -56,14 +59,17 @@ export default {
         try {
             const result = await resolveTrial(context.prisma, interaction.guildId, target.id, false);
             if (!result.updated) {
+                log.info({ targetId: target.id }, 'Fail rejected: no active trial found.');
                 await interaction.reply({
                     content: `No active trial found for ${target.tag}.`,
                     ephemeral: true,
                 });
                 return;
             }
+            log.info({ targetId: target.id, trialId: result.trialId }, 'Trial marked as failed.');
+            audit(interaction.guildId, 'trial.failed', interaction.user.id, { targetId: target.id, trialId: result.trialId });
         } catch (error) {
-            console.error('Error updating trial:', error);
+            log.error({ targetId: target.id, err: error }, 'Error failing trial.');
             await interaction.reply({
                 content: 'An error occurred while failing the trial. Please try again later.',
                 ephemeral: true,
@@ -75,7 +81,7 @@ export default {
             const member = await guild.members.fetch(target.id);
             await member.roles.remove(settings.trialRoleId);
         } catch (error) {
-            console.error('Error removing trial role:', error);
+            log.error({ targetId: target.id, trialRoleId: settings.trialRoleId, err: error }, 'Error removing trial role on fail.');
             await interaction.reply({
                 content: 'Trial was failed, but I could not remove the trial role. Please check my role permissions.',
                 ephemeral: true,

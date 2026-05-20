@@ -2,6 +2,7 @@ import type { PrismaClient, Settings } from '../generated/prisma/client.js';
 import type { DiscordClient } from '../DiscordClient.js';
 import type { APIEmbed } from 'discord.js';
 import cron from 'node-cron';
+import { logger } from './logger.js';
 
 export class GuildSettingsMissingError extends Error {
     constructor(guildId: string) {
@@ -37,7 +38,7 @@ export async function saveGuildSettings(
         raidAttendanceReminderThreshold?: number | null;
     },
 ): Promise<Settings> {
-    return prisma.settings.upsert({
+    const result = await prisma.settings.upsert({
         where: { guildId: settings.guildId },
         update: {
             officerChannelId: settings.officerChannelId,
@@ -48,6 +49,8 @@ export async function saveGuildSettings(
         },
         create: settings,
     });
+    logger.info({ guildId: settings.guildId }, 'saveGuildSettings: settings saved.');
+    return result;
 }
 
 export type RaidReminderSettingsValidationInput = {
@@ -79,6 +82,7 @@ export function validateRaidReminderSettings(
     }
 
     if (!cron.validate(rawCron)) {
+        logger.warn({ raidScheduleCron: rawCron }, 'validateRaidReminderSettings: invalid cron expression.');
         return {
             valid: false,
             reason: 'Raid schedule must be a valid cron expression.',
@@ -140,7 +144,8 @@ export async function sendOfficerChannelMessage(
         }
 
         return { delivered: true };
-    } catch {
+    } catch (err) {
+        logger.warn({ officerChannelId, err }, 'sendOfficerChannelMessage: send failed.');
         return { delivered: false, reason: 'send_failed' };
     }
 }

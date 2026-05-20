@@ -5,6 +5,7 @@ import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
 import { buildTrialListEmbeds, type TrialListItem } from '../services/embedBuilders.js';
 import { listTrials } from '../services/trialService.js';
+import { createGuildLogger } from '../services/logger.js';
 
 /*
 The list command should retrieve trial entries from the database and display them in a user-friendly format. 
@@ -46,7 +47,7 @@ export default {
                 return;
             }
 
-            console.error('Error retrieving guild settings:', error);
+            createGuildLogger(guildId).error({ err: error }, 'Error retrieving guild settings.');
             await interaction.reply({
                 content: 'An error occurred while retrieving server settings. Please try again later.',
                 ephemeral: true,
@@ -56,6 +57,13 @@ export default {
 
         try {
             const trials = await listTrials(context.prisma, guildId, activeOnly);
+            const log = createGuildLogger(guildId);
+
+            if (trials.length === 0) {
+                log.info({ activeOnly }, 'No trials found for listing.');
+            } else {
+                log.info({ activeOnly, count: trials.length }, 'Listing trials.');
+            }
             const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
             const items: TrialListItem[] = await Promise.all(trials.map(async trial => {
                 const status = trial.active ? 'Active' : trial.passed ? 'Passed' : 'Failed';
@@ -84,7 +92,7 @@ export default {
                 ephemeral: true,
             });
         } catch (error) {
-            console.error('Error retrieving trials:', error);
+            createGuildLogger(guildId!).error({ err: error }, 'Error retrieving trials.');
             await interaction.reply({
                 content: 'An error occurred while retrieving trials. Please try again later.',
                 ephemeral: true,

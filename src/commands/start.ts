@@ -2,6 +2,7 @@ import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.j
 import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
 import { startTrial } from '../services/trialService.js';
+import { createGuildLogger, audit } from '../services/logger.js';
 
 async function getValidatedTarget(interaction: ChatInputCommandInteraction) {
     const target = interaction.options.getUser('target');
@@ -43,7 +44,7 @@ async function getSettingsOrReply(interaction: ChatInputCommandInteraction, cont
             return null;
         }
 
-        console.error('Error retrieving guild settings:', error);
+        createGuildLogger(guildId).error({ err: error }, 'Error retrieving guild settings.');
         await interaction.reply({
             content: 'An error occurred while retrieving server settings. Please try again later.',
             ephemeral: true,
@@ -63,7 +64,7 @@ async function addTrialRoleOrReply(
         await member.roles.add(trialRoleId);
         return true;
     } catch (error) {
-        console.error('Error adding trial role:', error);
+        createGuildLogger(guild.id).error({ userId, trialRoleId, err: error }, 'Error adding trial role.');
         await interaction.reply({
             content: 'Trial was created, but I could not add the trial role. Please check my role permissions.',
             ephemeral: true,
@@ -94,6 +95,7 @@ export default {
         }
 
         const { guild, guildId } = guildContext;
+        const log = createGuildLogger(guildId);
 
         const target = await getValidatedTarget(interaction);
         if (!target) {
@@ -109,14 +111,18 @@ export default {
             const result = await startTrial(context.prisma, guildId, target.id, interaction.user.id);
 
             if (!result.created) {
+                log.info({ targetId: target.id }, 'Trial start rejected: user already has an active trial.');
                 await interaction.reply({
                     content: `${target.tag} already has an active trial in this server.`,
                     ephemeral: true,
                 });
                 return;
             }
+
+            log.info({ targetId: target.id, trialId: result.trial?.id }, 'Trial created successfully.');
+            audit(guildId, 'trial.started', interaction.user.id, { targetId: target.id, trialId: result.trial?.id });
         } catch (error) {
-            console.error('Error creating trial:', error);
+            log.error({ targetId: target.id, err: error }, 'Error creating trial.');
             await interaction.reply({
                 content: 'An error occurred while starting the trial. Please try again later.',
                 ephemeral: true,

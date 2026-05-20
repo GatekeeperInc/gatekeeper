@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -13,36 +8,34 @@ datasource db {
 }
 
 model Trial {
-  id        Int        @id @default(autoincrement())
-  guildId   String
-  userId    String
-  startTime DateTime   @default(now())
-  active    Boolean    @default(true)
-  passed    Boolean?   @default(false)
-  startedById String
-  feedbacks Feedback[]
+  id                     Int                     @id @default(autoincrement())
+  userId                 String
+  startTime              DateTime                @default(now())
+  active                 Boolean                 @default(true)
+  passed                 Boolean?                @default(false)
+  startedById            String
+  guildId                String
   attendanceReminderLogs AttendanceReminderLog[]
+  feedbacks              Feedback[]
 
-  @@unique([guildId, userId, active])
   @@index([guildId])
   @@index([guildId, active])
   @@index([guildId, userId])
 }
 
 model Feedback {
-  id          Int      @id @default(autoincrement())
-  guildId     String
-  trialId     Int
-  officerId   String
-  performance Int
-  attitude    Int
-  focus       Int
-  late        Boolean
-  comments    String?
+  id                 Int      @id @default(autoincrement())
+  trialId            Int
+  officerId          String
+  performance        Int
+  attitude           Int
+  focus              Int
+  late               Boolean
+  comments           String?
+  createdAt          DateTime @default(now())
+  guildId            String
   raidAttendanceDate String?
-  createdAt   DateTime @default(now())
-
-  trial Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  trial              Trial    @relation(fields: [trialId], references: [id], onDelete: Cascade)
 
   @@index([guildId])
   @@index([trialId])
@@ -50,26 +43,25 @@ model Feedback {
   @@index([guildId, raidAttendanceDate])
 }
 
-model Settings { 
-  id Int @id @default(autoincrement())
-  guildId String @unique
-  trialRoleId String
-  raiderRoleId String
-  officerChannelId String
-  raidScheduleCron String?
+model Settings {
+  id                              Int     @id @default(autoincrement())
+  guildId                         String  @unique
+  trialRoleId                     String
+  raiderRoleId                    String
+  officerChannelId                String
+  raidScheduleCron                String?
   raidAttendanceReminderThreshold Int?
 }
 
 model AttendanceReminderLog {
-  id Int @id @default(autoincrement())
-  guildId String
-  trialId Int
-  userId String
-  reminderDate String
+  id              Int      @id @default(autoincrement())
+  guildId         String
+  trialId         Int
+  userId          String
+  reminderDate    String
   attendanceCount Int
-  createdAt DateTime @default(now())
-
-  trial Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  trial           Trial    @relation(fields: [trialId], references: [id], onDelete: Cascade)
 
   @@unique([guildId, trialId, userId, reminderDate])
   @@index([guildId, reminderDate])

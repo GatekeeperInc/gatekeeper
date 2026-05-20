@@ -6,7 +6,6 @@ export interface AppContext {
     prisma: PrismaClient;
     client: DiscordClient;
     getCommand: (name: string) => Command | undefined;
-    // Future: logger, config, cache, etc.
 }
 
 export interface Command {
