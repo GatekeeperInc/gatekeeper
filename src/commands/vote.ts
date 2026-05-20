@@ -87,7 +87,8 @@ export default {
 
         const poll = pollResult.poll;
         const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
-        const targetDisplayName = await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
+        const targetDisplayName = poll.targetDisplayName
+            ?? await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
         const embed = buildTrialVotePollEmbed({
             targetDisplayName,
             targetId: poll.targetId,

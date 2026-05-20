@@ -108,10 +108,20 @@ export default {
             return;
         }
 
+        const targetDisplayNameSnapshot = await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
+        const officerDisplayNameSnapshot = await resolveGuildDisplayName(context.client, guildId, interaction.user.id, interaction.user.username);
+
         let createdTrialStartTime: Date | null = null;
 
         try {
-            const result = await startTrial(context.prisma, guildId, target.id, interaction.user.id);
+            const result = await startTrial(
+                context.prisma,
+                guildId,
+                target.id,
+                interaction.user.id,
+                targetDisplayNameSnapshot,
+                officerDisplayNameSnapshot,
+            );
 
             if (!result.created) {
                 log.info({ targetId: target.id }, 'Trial start rejected: user already has an active trial.');
@@ -139,8 +149,8 @@ export default {
             return;
         }
 
-        const displayName = await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
-        const officerDisplayName = await resolveGuildDisplayName(context.client, guildId, interaction.user.id, interaction.user.username);
+        const displayName = targetDisplayNameSnapshot;
+        const officerDisplayName = officerDisplayNameSnapshot;
         const projectedEndDate = createdTrialStartTime
             ? projectTrialExpectedEndDate(createdTrialStartTime, settings.raidScheduleCron, settings.raidAttendanceReminderThreshold)
             : null;

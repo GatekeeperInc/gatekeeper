@@ -57,8 +57,10 @@ export default {
         }
 
         try {
-            const displayName = await resolveGuildDisplayName(context.client, guildId, member.id, member.displayName);
             const result = await getMemberFeedbackSummary(context.prisma, guildId, member.id);
+            const displayName = result.outcome === 'no_feedback' && result.userDisplayName
+                ? result.userDisplayName
+                : await resolveGuildDisplayName(context.client, guildId, member.id, member.displayName);
 
             if (result.outcome === 'no_active_trial') {
                 createGuildLogger(guildId).info({ memberId: member.id }, 'Summary requested but no active trial found.');

@@ -109,6 +109,7 @@ export default {
         }
 
         let resolvedTrialStartTime: Date | null = null;
+        let trialDisplayName: string | null = null;
 
         try {
             const result = await resolveTrial(context.prisma, guildId, target.id, true);
@@ -123,6 +124,7 @@ export default {
             log.info({ targetId: target.id, trialId: result.trialId }, 'Trial marked as passed.');
             audit(guildId, 'trial.passed', interaction.user.id, { targetId: target.id, trialId: result.trialId });
             resolvedTrialStartTime = result.startTime ?? null;
+            trialDisplayName = result.userDisplayName ?? null;
 
             const closeResult = await closeTrialVotePoll(context.prisma, guildId, result.trialId!);
             if (closeResult.closed && closeResult.messageId) {
@@ -156,7 +158,8 @@ export default {
             return;
         }
 
-        const displayName = await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
+        const displayName = trialDisplayName
+            ?? await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
         const officerDisplayName = await resolveGuildDisplayName(context.client, guildId, interaction.user.id, interaction.user.username);
         const projectedEndDate = resolvedTrialStartTime
             ? projectTrialExpectedEndDate(resolvedTrialStartTime, settings.raidScheduleCron, settings.raidAttendanceReminderThreshold)

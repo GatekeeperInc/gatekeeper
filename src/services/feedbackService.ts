@@ -58,7 +58,7 @@ export type MemberFeedbackSummary = {
 
 export type MemberFeedbackSummaryResult =
     | { outcome: 'no_active_trial' }
-    | { outcome: 'no_feedback'; trialId: number; trialStartTime: Date }
+    | { outcome: 'no_feedback'; trialId: number; trialStartTime: Date; userDisplayName: string | null }
     | { outcome: 'summary'; summary: MemberFeedbackSummary };
 
 export type ActiveTrialAttendance = {
@@ -119,7 +119,12 @@ export async function getMemberFeedbackSummary(
     });
 
     if (feedbacks.length === 0) {
-        return { outcome: 'no_feedback', trialId: activeTrial.id, trialStartTime: activeTrial.startTime };
+        return {
+            outcome: 'no_feedback',
+            trialId: activeTrial.id,
+            trialStartTime: activeTrial.startTime,
+            userDisplayName: activeTrial.userDisplayName,
+        };
     }
 
     const lateCount = feedbacks.filter(feedback => feedback.late).length;

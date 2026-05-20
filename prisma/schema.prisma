@@ -10,10 +10,12 @@ datasource db {
 model Trial {
   id                     Int                     @id @default(autoincrement())
   userId                 String
+  userDisplayName        String?
   startTime              DateTime                @default(now())
   active                 Boolean                 @default(true)
   passed                 Boolean?                @default(false)
   startedById            String
+  startedByDisplayName   String?
   guildId                String
   attendanceReminderLogs AttendanceReminderLog[]
   votePolls TrialVotePoll[]

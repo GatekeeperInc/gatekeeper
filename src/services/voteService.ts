@@ -21,6 +21,7 @@ export type TrialVotePollSnapshot = {
     guildId: string;
     trialId: number;
     targetId: string;
+    targetDisplayName: string | null;
     open: boolean;
     totalVotes: number;
     passVotes: number;
@@ -49,6 +50,7 @@ function toSnapshot(poll: {
     guildId: string;
     trialId: number;
     targetId: string;
+    trial: { userDisplayName: string | null };
     open: boolean;
     votes: Array<{ option: TrialVoteOption }>;
 }): TrialVotePollSnapshot {
@@ -61,6 +63,7 @@ function toSnapshot(poll: {
         guildId: poll.guildId,
         trialId: poll.trialId,
         targetId: poll.targetId,
+        targetDisplayName: poll.trial.userDisplayName,
         open: poll.open,
         totalVotes: poll.votes.length,
         passVotes,
@@ -156,6 +159,11 @@ export async function createTrialVotePoll(
             open: true,
         },
         include: {
+            trial: {
+                select: {
+                    userDisplayName: true,
+                },
+            },
             votes: {
                 select: {
                     option: true,
@@ -199,6 +207,11 @@ export async function getTrialVotePollSnapshot(
             id: pollId,
         },
         include: {
+            trial: {
+                select: {
+                    userDisplayName: true,
+                },
+            },
             votes: {
                 select: {
                     option: true,
@@ -282,6 +295,11 @@ export async function recordTrialVote(
                 id: input.pollId,
             },
             include: {
+                trial: {
+                    select: {
+                        userDisplayName: true,
+                    },
+                },
                 votes: {
                     select: {
                         option: true,

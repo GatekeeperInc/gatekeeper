@@ -179,12 +179,13 @@ async function handleVoteButton(interaction: ButtonInteraction, context: AppCont
     }
 
     const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
-    const targetDisplayName = await resolveGuildDisplayName(
-        context.client,
-        interaction.guildId,
-        result.poll.targetId,
-        result.poll.targetId,
-    );
+    const targetDisplayName = result.poll.targetDisplayName
+        ?? await resolveGuildDisplayName(
+            context.client,
+            interaction.guildId,
+            result.poll.targetId,
+            result.poll.targetId,
+        );
 
     const embed = buildTrialVotePollEmbed({
         targetDisplayName,

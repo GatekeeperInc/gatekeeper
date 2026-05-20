@@ -67,7 +67,8 @@ export default {
             const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
             const items: TrialListItem[] = await Promise.all(trials.map(async trial => {
                 const status = trial.active ? 'Active' : trial.passed ? 'Passed' : 'Failed';
-                const displayName = await resolveGuildDisplayName(context.client, guildId, trial.userId, trial.userId);
+                const displayName = trial.userDisplayName
+                    ?? await resolveGuildDisplayName(context.client, guildId, trial.userId, trial.userId);
                 return {
                     displayName,
                     status,

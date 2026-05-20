@@ -75,7 +75,8 @@ export default {
 
         createGuildLogger(interaction.guildId).info({ targetId: target.id, trialId: activeTrial.id, officerId: interaction.user.id }, 'Feedback modal opened.');
 
-        const displayName = await resolveGuildDisplayName(context.client, interaction.guildId, target.id, target.displayName);
+        const displayName = activeTrial.userDisplayName
+            ?? await resolveGuildDisplayName(context.client, interaction.guildId, target.id, target.displayName);
         const modal = new ModalBuilder()
             .setCustomId(buildFeedbackModalCustomId(activeTrial.id, target.id))
             .setTitle(`Feedback for ${displayName}`);

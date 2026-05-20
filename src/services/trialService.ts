@@ -23,6 +23,8 @@ export async function startTrial(
     guildId: string,
     userId: string,
     startedById: string,
+    userDisplayName: string,
+    startedByDisplayName: string,
 ): Promise<{ created: boolean; trial?: Trial }> {
     const log = createGuildLogger(guildId);
     const existingTrial = await findActiveTrial(prisma, guildId, userId);
@@ -35,7 +37,9 @@ export async function startTrial(
         data: {
             guildId,
             userId,
+            userDisplayName,
             startedById,
+            startedByDisplayName,
             active: true,
             startTime: new Date(),
         },
@@ -50,7 +54,7 @@ export async function resolveTrial(
     guildId: string,
     userId: string,
     passed: boolean,
-): Promise<{ updated: boolean; trialId?: number; startTime?: Date }> {
+): Promise<{ updated: boolean; trialId?: number; startTime?: Date; userDisplayName?: string | null }> {
     const log = createGuildLogger(guildId);
     const activeTrial = await findActiveTrial(prisma, guildId, userId);
     if (!activeTrial) {
@@ -67,7 +71,12 @@ export async function resolveTrial(
     });
 
     log.info({ userId, trialId: activeTrial.id, passed }, 'resolveTrial: trial resolved.');
-    return { updated: true, trialId: activeTrial.id, startTime: activeTrial.startTime };
+    return {
+        updated: true,
+        trialId: activeTrial.id,
+        startTime: activeTrial.startTime,
+        userDisplayName: activeTrial.userDisplayName,
+    };
 }
 
 export function projectTrialExpectedEndDate(
