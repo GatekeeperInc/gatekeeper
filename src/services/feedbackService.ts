@@ -49,6 +49,7 @@ type FeedbackAverages = {
 
 export type MemberFeedbackSummary = {
     trialId: number;
+    trialStartTime: Date;
     feedbackCount: number;
     averages: FeedbackAverages;
     lateCount: number;
@@ -57,7 +58,7 @@ export type MemberFeedbackSummary = {
 
 export type MemberFeedbackSummaryResult =
     | { outcome: 'no_active_trial' }
-    | { outcome: 'no_feedback'; trialId: number }
+    | { outcome: 'no_feedback'; trialId: number; trialStartTime: Date }
     | { outcome: 'summary'; summary: MemberFeedbackSummary };
 
 export type ActiveTrialAttendance = {
@@ -118,7 +119,7 @@ export async function getMemberFeedbackSummary(
     });
 
     if (feedbacks.length === 0) {
-        return { outcome: 'no_feedback', trialId: activeTrial.id };
+        return { outcome: 'no_feedback', trialId: activeTrial.id, trialStartTime: activeTrial.startTime };
     }
 
     const lateCount = feedbacks.filter(feedback => feedback.late).length;
@@ -131,6 +132,7 @@ export async function getMemberFeedbackSummary(
         outcome: 'summary',
         summary: {
             trialId: activeTrial.id,
+            trialStartTime: activeTrial.startTime,
             feedbackCount: feedbacks.length,
             averages: calculateAverages(feedbacks),
             lateCount,

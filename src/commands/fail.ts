@@ -1,7 +1,8 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
-import { resolveTrial } from '../services/trialService.js';
+import { buildTrialResolvedEmbed } from '../services/embedBuilders.js';
+import { projectTrialExpectedEndDate, resolveTrial } from '../services/trialService.js';
 import { createGuildLogger, audit } from '../services/logger.js';
 
 export default {
@@ -36,6 +37,7 @@ export default {
         }
 
         let settings;
+        let resolvedTrialStartTime: Date | null = null;
 
         try {
             settings = await getGuildSettings(context.prisma, interaction.guildId);
@@ -68,6 +70,7 @@ export default {
             }
             log.info({ targetId: target.id, trialId: result.trialId }, 'Trial marked as failed.');
             audit(interaction.guildId, 'trial.failed', interaction.user.id, { targetId: target.id, trialId: result.trialId });
+            resolvedTrialStartTime = result.startTime ?? null;
         } catch (error) {
             log.error({ targetId: target.id, err: error }, 'Error failing trial.');
             await interaction.reply({
@@ -90,8 +93,22 @@ export default {
         }
 
         const displayName = await resolveGuildDisplayName(context.client, interaction.guildId, target.id, target.displayName);
-        const message = `Trial failed for ${displayName}!`;
-        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, message);
+        const officerDisplayName = await resolveGuildDisplayName(context.client, interaction.guildId, interaction.user.id, interaction.user.username);
+        const projectedEndDate = resolvedTrialStartTime
+            ? projectTrialExpectedEndDate(resolvedTrialStartTime, settings.raidScheduleCron, settings.raidAttendanceReminderThreshold)
+            : null;
+        const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
+        const embed = buildTrialResolvedEmbed('failed', {
+            memberDisplayName: displayName,
+            memberId: target.id,
+            officerDisplayName,
+            officerId: interaction.user.id,
+            startedAt: resolvedTrialStartTime ?? new Date(),
+            expectedCompletionDate: projectedEndDate,
+        }, logoUrl);
+        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, {
+            embeds: [embed.toJSON()],
+        });
 
         if (!sendResult.delivered) {
             await interaction.reply({

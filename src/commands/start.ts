@@ -1,7 +1,8 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import type { AppContext } from '../types.js';
 import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, sendOfficerChannelMessage } from '../services/guildSettings.js';
-import { startTrial } from '../services/trialService.js';
+import { buildTrialStartedEmbed } from '../services/embedBuilders.js';
+import { projectTrialExpectedEndDate, startTrial } from '../services/trialService.js';
 import { createGuildLogger, audit } from '../services/logger.js';
 
 async function getValidatedTarget(interaction: ChatInputCommandInteraction) {
@@ -107,6 +108,8 @@ export default {
             return;
         }
 
+        let createdTrialStartTime: Date | null = null;
+
         try {
             const result = await startTrial(context.prisma, guildId, target.id, interaction.user.id);
 
@@ -121,6 +124,7 @@ export default {
 
             log.info({ targetId: target.id, trialId: result.trial?.id }, 'Trial created successfully.');
             audit(guildId, 'trial.started', interaction.user.id, { targetId: target.id, trialId: result.trial?.id });
+            createdTrialStartTime = result.trial?.startTime ?? null;
         } catch (error) {
             log.error({ targetId: target.id, err: error }, 'Error creating trial.');
             await interaction.reply({
@@ -136,8 +140,22 @@ export default {
         }
 
         const displayName = await resolveGuildDisplayName(context.client, guildId, target.id, target.displayName);
-        const message = `Trial started for ${displayName}!`;
-        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, message);
+        const officerDisplayName = await resolveGuildDisplayName(context.client, guildId, interaction.user.id, interaction.user.username);
+        const projectedEndDate = createdTrialStartTime
+            ? projectTrialExpectedEndDate(createdTrialStartTime, settings.raidScheduleCron, settings.raidAttendanceReminderThreshold)
+            : null;
+        const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
+        const embed = buildTrialStartedEmbed({
+            memberDisplayName: displayName,
+            memberId: target.id,
+            officerDisplayName,
+            officerId: interaction.user.id,
+            startedAt: createdTrialStartTime ?? new Date(),
+            expectedCompletionDate: projectedEndDate,
+        }, logoUrl);
+        const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, {
+            embeds: [embed.toJSON()],
+        });
 
         if (!sendResult.delivered) {
             await interaction.reply({

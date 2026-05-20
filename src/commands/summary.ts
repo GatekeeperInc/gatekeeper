@@ -4,6 +4,7 @@ import { GuildSettingsMissingError, getGuildSettings, resolveGuildDisplayName, s
 import { buildFeedbackSummaryEmbed } from '../services/embedBuilders.js';
 import { getMemberFeedbackSummary } from '../services/feedbackService.js';
 import { createGuildLogger } from '../services/logger.js';
+import { projectTrialExpectedEndDate } from '../services/trialService.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -67,8 +68,15 @@ export default {
                 createGuildLogger(guildId).info({ memberId: member.id, trialId: result.summary.trialId, feedbackCount: result.summary.feedbackCount }, 'Summary retrieved.');
             }
 
+            const expectedCompletionDate = result.outcome === 'no_active_trial'
+                ? null
+                : projectTrialExpectedEndDate(
+                    result.outcome === 'no_feedback' ? result.trialStartTime : result.summary.trialStartTime,
+                    settings.raidScheduleCron,
+                    settings.raidAttendanceReminderThreshold,
+                );
             const logoUrl = context.client.user?.displayAvatarURL({ extension: 'png', size: 256 });
-            const embed = buildFeedbackSummaryEmbed(displayName, result, logoUrl);
+            const embed = buildFeedbackSummaryEmbed(displayName, result, expectedCompletionDate, logoUrl);
 
             const sendResult = await sendOfficerChannelMessage(context.client, settings.officerChannelId, {
                 embeds: [embed.toJSON()],

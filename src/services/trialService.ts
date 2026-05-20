@@ -1,4 +1,5 @@
 import type { PrismaClient, Trial } from '../generated/prisma/client.js';
+import { CronExpressionParser } from 'cron-parser';
 import { createGuildLogger } from './logger.js';
 
 export async function findActiveTrial(
@@ -49,7 +50,7 @@ export async function resolveTrial(
     guildId: string,
     userId: string,
     passed: boolean,
-): Promise<{ updated: boolean; trialId?: number }> {
+): Promise<{ updated: boolean; trialId?: number; startTime?: Date }> {
     const log = createGuildLogger(guildId);
     const activeTrial = await findActiveTrial(prisma, guildId, userId);
     if (!activeTrial) {
@@ -66,7 +67,33 @@ export async function resolveTrial(
     });
 
     log.info({ userId, trialId: activeTrial.id, passed }, 'resolveTrial: trial resolved.');
-    return { updated: true, trialId: activeTrial.id };
+    return { updated: true, trialId: activeTrial.id, startTime: activeTrial.startTime };
+}
+
+export function projectTrialExpectedEndDate(
+    trialStartTime: Date,
+    raidScheduleCron?: string | null,
+    raidAttendanceReminderThreshold?: number | null,
+): Date | null {
+    if (!raidScheduleCron || !raidAttendanceReminderThreshold || raidAttendanceReminderThreshold < 1) {
+        return null;
+    }
+
+    try {
+        const schedule = CronExpressionParser.parse(raidScheduleCron, {
+            currentDate: trialStartTime,
+        });
+
+        let projectedDate: Date | null = null;
+
+        for (let index = 0; index < raidAttendanceReminderThreshold; index += 1) {
+            projectedDate = schedule.next().toDate();
+        }
+
+        return projectedDate;
+    } catch {
+        return null;
+    }
 }
 
 export async function listTrials(
