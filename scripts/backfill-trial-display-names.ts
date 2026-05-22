@@ -1,6 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Client, GatewayIntentBits } from "discord.js";
-import { PrismaClient } from "./src/generated/prisma/client.js";
+import { PrismaClient } from "../src/generated/prisma/client.js";
 
 const REQUIRED_CONFIRMATION = "BACKFILL_TRIAL_DISPLAY_NAMES";
 

@@ -7,7 +7,7 @@ import {
 	Events as SapphireEvents,
 } from "@sapphire/framework";
 import { GatewayIntentBits } from "discord.js";
-import { prisma } from "./src/prisma.js";
+import { prisma } from "../src/prisma.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

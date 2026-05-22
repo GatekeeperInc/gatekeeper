@@ -1,4 +1,4 @@
-import { prisma } from "./src/prisma.js";
+import { prisma } from "../src/prisma.js";
 
 const REQUIRED_CONFIRMATION = "BACKFILL_RAID_ATTENDANCE_DATE";
 
