@@ -1,9 +1,5 @@
-import {
-	type APIRole,
-	type ChatInputCommandInteraction,
-	type Role,
-} from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
+import type { APIRole, ChatInputCommandInteraction, Role } from "discord.js";
 import {
 	buildRoleDebugEmbed,
 	type RoleDebugRoleSnapshot,
@@ -53,27 +49,30 @@ export class RoledebugCommand extends Command {
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addRoleOption((option) =>
-					option
-						.setName("role")
-						.setDescription("Role to inspect")
-						.setRequired(false),
-				)
-				.addStringOption((option) =>
-					option
-						.setName("role_id")
-						.setDescription("Role ID to inspect if it is missing from role picker")
-						.setRequired(false),
-				), { idHints: ["1506975871188209784", "1507106673238605936"] });
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.addRoleOption((option) =>
+						option
+							.setName("role")
+							.setDescription("Role to inspect")
+							.setRequired(false),
+					)
+					.addStringOption((option) =>
+						option
+							.setName("role_id")
+							.setDescription(
+								"Role ID to inspect if it is missing from role picker",
+							)
+							.setRequired(false),
+					),
+			{ idHints: ["1506975871188209784", "1507106673238605936"] },
+		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const guild = interaction.guild;
 		const guildId = interaction.guildId;
 

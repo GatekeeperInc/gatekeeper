@@ -74,11 +74,14 @@ export async function runGuildRaidAttendanceReminderCycle(
 		"runGuildRaidAttendanceReminderCycle: evaluating candidates.",
 	);
 
-	let remindersSent = 0;
-	let remindersSkippedAsDuplicate = 0;
-	let deliveryFailures = 0;
+	type CandidateOutcome =
+		| { status: "sent" }
+		| { status: "duplicate" }
+		| { status: "delivery_failed" };
 
-	for (const candidate of candidates) {
+	async function processCandidate(
+		candidate: (typeof candidates)[number],
+	): Promise<CandidateOutcome> {
 		const existingReminder =
 			await context.prisma.attendanceReminderLog.findUnique({
 				where: {
@@ -92,12 +95,11 @@ export async function runGuildRaidAttendanceReminderCycle(
 			});
 
 		if (existingReminder) {
-			remindersSkippedAsDuplicate += 1;
 			log.info(
 				{ userId: candidate.userId, trialId: candidate.trialId, today },
 				"Reminder already sent today, skipping duplicate.",
 			);
-			continue;
+			return { status: "duplicate" };
 		}
 
 		const displayName = await resolveGuildDisplayName(
@@ -132,8 +134,7 @@ export async function runGuildRaidAttendanceReminderCycle(
 				},
 				"Failed to deliver attendance reminder.",
 			);
-			deliveryFailures += 1;
-			continue;
+			return { status: "delivery_failed" };
 		}
 
 		await context.prisma.attendanceReminderLog.create({
@@ -151,7 +152,27 @@ export async function runGuildRaidAttendanceReminderCycle(
 			trialId: candidate.trialId,
 			raidNightsAttended: candidate.raidNightsAttended,
 		});
-		remindersSent += 1;
+
+		return { status: "sent" };
+	}
+
+	const settled = await Promise.allSettled(
+		candidates.map((c) => processCandidate(c)),
+	);
+
+	let remindersSent = 0;
+	let remindersSkippedAsDuplicate = 0;
+	let deliveryFailures = 0;
+
+	for (const result of settled) {
+		if (result.status === "rejected") {
+			log.error({ err: result.reason }, "Candidate reminder processing threw unexpectedly.");
+			deliveryFailures += 1;
+			continue;
+		}
+		if (result.value.status === "sent") remindersSent += 1;
+		else if (result.value.status === "duplicate") remindersSkippedAsDuplicate += 1;
+		else deliveryFailures += 1;
 	}
 
 	log.info(

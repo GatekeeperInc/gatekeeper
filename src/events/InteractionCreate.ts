@@ -1,9 +1,9 @@
-import {
-	type ButtonInteraction,
-	type Interaction,
-	type ModalSubmitInteraction,
-} from "discord.js";
 import { Listener } from "@sapphire/framework";
+import type {
+	ButtonInteraction,
+	Interaction,
+	ModalSubmitInteraction,
+} from "discord.js";
 import { buildTrialVotePollEmbed } from "../services/embedBuilders.js";
 import {
 	createFeedback,

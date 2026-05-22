@@ -22,7 +22,10 @@ try {
 
 	console.log(`Found ${existing.length} global command(s). Clearing...`);
 
-	await rest.put(Routes.applicationCommands(clientId), { body: [] });
+	await rest.put(
+		Routes.applicationGuildCommands(clientId, "1499008637002190949"),
+		{ body: [] },
+	);
 
 	console.log("Global commands cleared successfully.");
 } catch (error) {

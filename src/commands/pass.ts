@@ -1,3 +1,4 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	ApplicationCommandType,
 	type ChatInputCommandInteraction,
@@ -5,7 +6,6 @@ import {
 	type Guild,
 	type User,
 } from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import { buildTrialResolvedEmbed } from "../services/embedBuilders.js";
 import {
 	GuildSettingsMissingError,
@@ -40,9 +40,7 @@ async function getValidatedTarget(interaction: ChatInputCommandInteraction) {
 	return target;
 }
 
-async function getValidatedGuildContext(
-	interaction: TrialCommandInteraction,
-) {
+async function getValidatedGuildContext(interaction: TrialCommandInteraction) {
 	const guild = interaction.guild;
 	const guildId = interaction.guildId;
 
@@ -127,23 +125,23 @@ export class PassCommand extends Command {
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addUserOption((option) =>
-					option
-						.setName("target")
-						.setDescription("The user to pass the trial for")
-						.setRequired(true),
-				),
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.addUserOption((option) =>
+						option
+							.setName("target")
+							.setDescription("The user to pass the trial for")
+							.setRequired(true),
+					),
 			{ idHints: ["1507106765685391470"] },
 		);
 
-		registry.registerContextMenuCommand((builder) =>
-			builder
-				.setName("Pass Trial")
-				.setType(ApplicationCommandType.User),
+		registry.registerContextMenuCommand(
+			(builder) =>
+				builder.setName("Pass Trial").setType(ApplicationCommandType.User),
 			{
 				idHints: [
 					"1507139675435827271",
@@ -154,9 +152,7 @@ export class PassCommand extends Command {
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const target = await getValidatedTarget(interaction);
 		if (!target) {
 			return;
@@ -179,10 +175,7 @@ export class PassCommand extends Command {
 		await this.runPass(interaction, interaction.targetUser);
 	}
 
-	private async runPass(
-		interaction: TrialCommandInteraction,
-		target: User,
-	) {
+	private async runPass(interaction: TrialCommandInteraction, target: User) {
 		const guildContext = await getValidatedGuildContext(interaction);
 		if (!guildContext) {
 			return;

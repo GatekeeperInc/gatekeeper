@@ -5,5 +5,3 @@ declare module "@sapphire/framework" {
 		prisma: PrismaClient;
 	}
 }
-
-export {};

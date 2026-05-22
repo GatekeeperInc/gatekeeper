@@ -1,10 +1,10 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	ApplicationCommandType,
 	type ChatInputCommandInteraction,
 	type ContextMenuCommandInteraction,
 	type User,
 } from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import { buildFeedbackSummaryEmbed } from "../services/embedBuilders.js";
 import { getMemberFeedbackSummary } from "../services/feedbackService.js";
 import {
@@ -32,32 +32,36 @@ export class SummaryCommand extends Command {
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addUserOption((option) =>
-					option
-						.setName("member")
-						.setDescription("The member to summarize feedback for")
-						.setRequired(true),
-				),
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.addUserOption((option) =>
+						option
+							.setName("member")
+							.setDescription("The member to summarize feedback for")
+							.setRequired(true),
+					),
 			{ idHints: ["1507106762896052334"] },
 		);
 
-		registry.registerContextMenuCommand((builder) =>
-			builder
-				.setName("View Trial Summary")
-				.setType(ApplicationCommandType.User),
+		registry.registerContextMenuCommand(
+			(builder) =>
+				builder
+					.setName("View Trial Summary")
+					.setType(ApplicationCommandType.User),
 			{
-				idHints: ["1507139591918977176", "1507141186635173968", "1507142623800983634"],
+				idHints: [
+					"1507139591918977176",
+					"1507141186635173968",
+					"1507142623800983634",
+				],
 			},
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const member = interaction.options.getUser("member");
 		if (!member) {
 			await interaction.reply({
@@ -84,10 +88,7 @@ export class SummaryCommand extends Command {
 		await this.runSummary(interaction, interaction.targetUser);
 	}
 
-	private async runSummary(
-		interaction: TrialCommandInteraction,
-		member: User,
-	) {
+	private async runSummary(interaction: TrialCommandInteraction, member: User) {
 		const guildId = interaction.guildId;
 
 		if (!guildId) {

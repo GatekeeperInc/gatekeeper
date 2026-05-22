@@ -1,3 +1,4 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	ChannelSelectMenuBuilder,
 	type ChatInputCommandInteraction,
@@ -7,7 +8,6 @@ import {
 	TextInputBuilder,
 	TextInputStyle,
 } from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import { findGuildSettings } from "../services/guildSettings.js";
 import { createGuildLogger } from "../services/logger.js";
 
@@ -30,15 +30,13 @@ export class SettingsCommand extends Command {
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder.setName(this.name).setDescription(this.description),
+		registry.registerChatInputCommand(
+			(builder) => builder.setName(this.name).setDescription(this.description),
 			{ idHints: ["1507106679014297761"] },
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const guildId = interaction.guildId;
 
 		if (!guildId) {

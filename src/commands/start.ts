@@ -1,9 +1,9 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	ApplicationCommandType,
 	type ChatInputCommandInteraction,
 	type ContextMenuCommandInteraction,
 	type Guild,
-	SlashCommandBuilder,
 	type User,
 } from "discord.js";
 import { buildTrialStartedEmbed } from "../services/embedBuilders.js";
@@ -18,7 +18,6 @@ import {
 	projectTrialExpectedEndDate,
 	startTrial,
 } from "../services/trialService.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 
 type TrialCommandInteraction =
 	| ChatInputCommandInteraction
@@ -37,9 +36,7 @@ async function getValidatedTarget(interaction: ChatInputCommandInteraction) {
 	return target;
 }
 
-async function getValidatedGuildContext(
-	interaction: TrialCommandInteraction,
-) {
+async function getValidatedGuildContext(interaction: TrialCommandInteraction) {
 	const guild = interaction.guild;
 	const guildId = interaction.guildId;
 
@@ -113,7 +110,6 @@ async function addTrialRoleOrReply(
 // It should check if the user already has an active trial and prevent starting a new one if they do.
 // The trial entry should include the user who started the trial, the start time, and any other relevant information.
 
-
 export class StartCommand extends Command {
 	public constructor(context: Command.LoaderContext, options: Command.Options) {
 		super(context, {
@@ -123,24 +119,26 @@ export class StartCommand extends Command {
 		});
 	}
 
-	public override registerApplicationCommands(registry: ApplicationCommandRegistry) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addUserOption((option) =>
-					option
-						.setName("target")
-						.setDescription("The user to start the trial for")
-						.setRequired(true),
-				),
+	public override registerApplicationCommands(
+		registry: ApplicationCommandRegistry,
+	) {
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.addUserOption((option) =>
+						option
+							.setName("target")
+							.setDescription("The user to start the trial for")
+							.setRequired(true),
+					),
 			{ idHints: ["1506975873704660992", "1507106674631114873"] },
 		);
 
-		registry.registerContextMenuCommand((builder) =>
-			builder
-				.setName("Start Trial")
-				.setType(ApplicationCommandType.User),
+		registry.registerContextMenuCommand(
+			(builder) =>
+				builder.setName("Start Trial").setType(ApplicationCommandType.User),
 			{
 				idHints: [
 					"1507139584482349116",
@@ -151,9 +149,7 @@ export class StartCommand extends Command {
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const target = await getValidatedTarget(interaction);
 		if (!target) {
 			return;
@@ -176,10 +172,7 @@ export class StartCommand extends Command {
 		await this.runStart(interaction, interaction.targetUser);
 	}
 
-	private async runStart(
-		interaction: TrialCommandInteraction,
-		target: User,
-	) {
+	private async runStart(interaction: TrialCommandInteraction, target: User) {
 		const client = this.container.client;
 		const messageClient = client as Parameters<
 			typeof sendOfficerChannelMessage
@@ -269,10 +262,10 @@ export class StartCommand extends Command {
 		const officerDisplayName = officerDisplayNameSnapshot;
 		const projectedEndDate = createdTrialStartTime
 			? projectTrialExpectedEndDate(
-				createdTrialStartTime,
-				settings.raidScheduleCron,
-				settings.raidAttendanceReminderThreshold,
-			)
+					createdTrialStartTime,
+					settings.raidScheduleCron,
+					settings.raidAttendanceReminderThreshold,
+				)
 			: null;
 		const logoUrl = client.user?.displayAvatarURL({
 			extension: "png",

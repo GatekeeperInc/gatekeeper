@@ -1,8 +1,8 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	type ChatInputCommandInteraction,
 	PermissionFlagsBits,
 } from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import { runGuildRaidAttendanceReminderCycle } from "../services/raidAttendanceReminderService.js";
 
 export class RemindersCommand extends Command {
@@ -17,26 +17,25 @@ export class RemindersCommand extends Command {
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-				.setDMPermission(false)
-				.addSubcommand((subcommand) =>
-					subcommand
-						.setName("run-now")
-						.setDescription(
-							"Runs the raid attendance reminder cycle for this server immediately",
-						),
-				),
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+					.setDMPermission(false)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName("run-now")
+							.setDescription(
+								"Runs the raid attendance reminder cycle for this server immediately",
+							),
+					),
 			{ idHints: ["1506975876255060102", "1507106677206548624"] },
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		if (!interaction.guildId) {
 			await interaction.reply({
 				content: "This command can only be used in a server.",

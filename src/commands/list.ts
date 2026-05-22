@@ -1,9 +1,7 @@
 // lists trials, takes active as a optional argument to filter by active/inactive trials, defaults to active trials only
 
-import {
-	type ChatInputCommandInteraction,
-} from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
+import type { ChatInputCommandInteraction } from "discord.js";
 import {
 	buildTrialListEmbeds,
 	type TrialListItem,
@@ -48,9 +46,7 @@ export class ListCommand extends Command {
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const activeOnly = interaction.options.getBoolean("active") ?? true;
 		const guildId = interaction.guildId;
 
@@ -87,7 +83,11 @@ export class ListCommand extends Command {
 		}
 
 		try {
-			const trials = await listTrials(this.container.prisma, guildId, activeOnly);
+			const trials = await listTrials(
+				this.container.prisma,
+				guildId,
+				activeOnly,
+			);
 			if (trials.length === 0) {
 				log.info({ activeOnly }, "No trials found for listing.");
 			} else {

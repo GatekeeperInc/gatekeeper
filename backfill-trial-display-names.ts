@@ -1,5 +1,5 @@
-import { GatewayIntentBits, Client } from "discord.js";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Client, GatewayIntentBits } from "discord.js";
 import { PrismaClient } from "./src/generated/prisma/client.js";
 
 const REQUIRED_CONFIRMATION = "BACKFILL_TRIAL_DISPLAY_NAMES";
@@ -100,7 +100,10 @@ function parseOptions(argv: string[]): Options {
 		}
 
 		if (arg.startsWith("--sleep-ms=")) {
-			const value = parseNumberFlag(arg.slice("--sleep-ms=".length), "--sleep-ms");
+			const value = parseNumberFlag(
+				arg.slice("--sleep-ms=".length),
+				"--sleep-ms",
+			);
 			if (value < 0) {
 				throw new Error("--sleep-ms must be zero or positive.");
 			}
@@ -135,7 +138,9 @@ function parseOptions(argv: string[]): Options {
 	}
 
 	if (options.maxBatches !== null && options.maxBatches < 1) {
-		throw new Error("--max-batches must be at least 1, or omitted for unlimited.");
+		throw new Error(
+			"--max-batches must be at least 1, or omitted for unlimited.",
+		);
 	}
 
 	if (options.apply && options.confirmToken !== REQUIRED_CONFIRMATION) {
@@ -280,21 +285,21 @@ async function run(): Promise<void> {
 		...(options.guildId ? { guildId: options.guildId } : {}),
 		...(!options.overwrite
 			? {
-				OR: [
-					{ userDisplayName: null as null },
-					{ startedByDisplayName: null as null },
-					{
-						userDisplayName: {
-							equals: prisma.trial.fields.userId,
+					OR: [
+						{ userDisplayName: null as null },
+						{ startedByDisplayName: null as null },
+						{
+							userDisplayName: {
+								equals: prisma.trial.fields.userId,
+							},
 						},
-					},
-					{
-						startedByDisplayName: {
-							equals: prisma.trial.fields.startedById,
+						{
+							startedByDisplayName: {
+								equals: prisma.trial.fields.startedById,
+							},
 						},
-					},
-				],
-			}
+					],
+				}
 			: {}),
 	};
 

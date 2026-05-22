@@ -1,3 +1,4 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	ApplicationCommandType,
 	type ChatInputCommandInteraction,
@@ -9,7 +10,6 @@ import {
 	TextInputStyle,
 	type User,
 } from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import { buildFeedbackModalCustomId } from "../services/feedbackService.js";
 import { resolveGuildDisplayName } from "../services/guildSettings.js";
 import { createGuildLogger } from "../services/logger.js";
@@ -46,39 +46,42 @@ export class FeedbackCommand extends Command {
 		super(context, {
 			...options,
 			name: "feedback",
-			description: "Provides a feedback form for users to submit their feedback.",
+			description:
+				"Provides a feedback form for users to submit their feedback.",
 		});
 	}
 
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addUserOption((option) =>
-					option
-						.setName("target")
-						.setDescription("The user to provide feedback for")
-						.setRequired(true),
-				),
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.addUserOption((option) =>
+						option
+							.setName("target")
+							.setDescription("The user to provide feedback for")
+							.setRequired(true),
+					),
 			{ idHints: ["1507106768046657608"] },
 		);
 
-		registry.registerContextMenuCommand((builder) =>
-			builder
-				.setName("Add Feedback")
-				.setType(ApplicationCommandType.User),
+		registry.registerContextMenuCommand(
+			(builder) =>
+				builder.setName("Add Feedback").setType(ApplicationCommandType.User),
 			{
-				idHints: ["1507139682578862162", "1507141274413830285", "1507142863237025944"],
+				idHints: [
+					"1507139682578862162",
+					"1507141274413830285",
+					"1507142863237025944",
+				],
 			},
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const target = interaction.options.getUser("target");
 		if (!target) {
 			await interaction.reply({

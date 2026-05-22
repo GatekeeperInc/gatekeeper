@@ -1,10 +1,10 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	ApplicationCommandType,
 	type ChatInputCommandInteraction,
 	type ContextMenuCommandInteraction,
 	type User,
 } from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import { buildTrialResolvedEmbed } from "../services/embedBuilders.js";
 import {
 	GuildSettingsMissingError,
@@ -38,23 +38,23 @@ export class FailCommand extends Command {
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addUserOption((option) =>
-					option
-						.setName("target")
-						.setDescription("The user to fail the trial for")
-						.setRequired(true),
-				),
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.addUserOption((option) =>
+						option
+							.setName("target")
+							.setDescription("The user to fail the trial for")
+							.setRequired(true),
+					),
 			{ idHints: ["1507106766935162921"] },
 		);
 
-		registry.registerContextMenuCommand((builder) =>
-			builder
-				.setName("Fail Trial")
-				.setType(ApplicationCommandType.User),
+		registry.registerContextMenuCommand(
+			(builder) =>
+				builder.setName("Fail Trial").setType(ApplicationCommandType.User),
 			{
 				idHints: [
 					"1507139676618752263",
@@ -65,9 +65,7 @@ export class FailCommand extends Command {
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const target = interaction.options.getUser("target");
 		if (!target) {
 			await interaction.reply({
@@ -94,10 +92,7 @@ export class FailCommand extends Command {
 		await this.runFail(interaction, interaction.targetUser);
 	}
 
-	private async runFail(
-		interaction: TrialCommandInteraction,
-		target: User,
-	) {
+	private async runFail(interaction: TrialCommandInteraction, target: User) {
 		const guild = interaction.guild;
 
 		if (!guild || !interaction.guildId) {
@@ -115,7 +110,10 @@ export class FailCommand extends Command {
 		let trialDisplayName: string | null = null;
 
 		try {
-			settings = await getGuildSettings(this.container.prisma, interaction.guildId);
+			settings = await getGuildSettings(
+				this.container.prisma,
+				interaction.guildId,
+			);
 		} catch (error) {
 			if (error instanceof GuildSettingsMissingError) {
 				await interaction.reply({

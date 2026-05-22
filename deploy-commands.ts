@@ -2,9 +2,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	ApplicationCommandRegistries,
-	Events as SapphireEvents,
-	SapphireClient,
 	container,
+	SapphireClient,
+	Events as SapphireEvents,
 } from "@sapphire/framework";
 import { GatewayIntentBits } from "discord.js";
 import { prisma } from "./src/prisma.js";
@@ -43,7 +43,9 @@ const client = new SapphireClient({
 });
 
 container.prisma = prisma;
-client.stores.get("listeners").registerPath(path.join(__dirname, "src", "events"));
+client.stores
+	.get("listeners")
+	.registerPath(path.join(__dirname, "src", "events"));
 
 client.once(
 	SapphireEvents.ApplicationCommandRegistriesRegistered,
@@ -57,12 +59,15 @@ client.once(
 	},
 );
 
-client.once(SapphireEvents.ApplicationCommandRegistriesBulkOverwriteError, async (error) => {
-	console.error("Bulk overwrite command registration failed:", error);
-	await client.destroy();
-	await prisma.$disconnect();
-	process.exit(1);
-});
+client.once(
+	SapphireEvents.ApplicationCommandRegistriesBulkOverwriteError,
+	async (error) => {
+		console.error("Bulk overwrite command registration failed:", error);
+		await client.destroy();
+		await prisma.$disconnect();
+		process.exit(1);
+	},
+);
 
 await client.login(token).catch(async (error) => {
 	console.error("Failed to login for command deployment:", error);

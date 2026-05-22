@@ -1,10 +1,10 @@
+import { type ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import {
 	ApplicationCommandType,
 	type ChatInputCommandInteraction,
 	type ContextMenuCommandInteraction,
 	type User,
 } from "discord.js";
-import { ApplicationCommandRegistry, Command } from "@sapphire/framework";
 import { buildTrialVotePollEmbed } from "../services/embedBuilders.js";
 import {
 	GuildSettingsMissingError,
@@ -22,9 +22,7 @@ type TrialCommandInteraction =
 	| ChatInputCommandInteraction
 	| ContextMenuCommandInteraction;
 
-async function getValidatedGuildContext(
-	interaction: TrialCommandInteraction,
-) {
+async function getValidatedGuildContext(interaction: TrialCommandInteraction) {
 	const guild = interaction.guild;
 	const guildId = interaction.guildId;
 
@@ -75,32 +73,36 @@ export class VoteCommand extends Command {
 	public override registerApplicationCommands(
 		registry: ApplicationCommandRegistry,
 	) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addUserOption((option) =>
-					option
-						.setName("target")
-						.setDescription("The user to vote on")
-						.setRequired(true),
-				),
+		registry.registerChatInputCommand(
+			(builder) =>
+				builder
+					.setName(this.name)
+					.setDescription(this.description)
+					.addUserOption((option) =>
+						option
+							.setName("target")
+							.setDescription("The user to vote on")
+							.setRequired(true),
+					),
 			{ idHints: ["1507106764330631330"] },
 		);
 
-		registry.registerContextMenuCommand((builder) =>
-			builder
-				.setName("Start Trial Vote")
-				.setType(ApplicationCommandType.User),
+		registry.registerContextMenuCommand(
+			(builder) =>
+				builder
+					.setName("Start Trial Vote")
+					.setType(ApplicationCommandType.User),
 			{
-				idHints: ["1507139674055905341", "1507141187604320367", "1507142625571115188"],
+				idHints: [
+					"1507139674055905341",
+					"1507141187604320367",
+					"1507142625571115188",
+				],
 			},
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction) {
 		const target = interaction.options.getUser("target");
 		if (!target) {
 			await interaction.reply({
@@ -127,10 +129,7 @@ export class VoteCommand extends Command {
 		await this.runVote(interaction, interaction.targetUser);
 	}
 
-	private async runVote(
-		interaction: TrialCommandInteraction,
-		target: User,
-	) {
+	private async runVote(interaction: TrialCommandInteraction, target: User) {
 		await interaction.deferReply({ flags: ["Ephemeral"] });
 
 		const guildContext = await getValidatedGuildContext(interaction);
