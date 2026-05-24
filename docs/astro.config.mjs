@@ -6,6 +6,11 @@ import { siteConfig } from './src/config/site';
 // https://astro.build/config
 export default defineConfig({
 	site: siteConfig.siteUrl,
+	vite: {
+		preview: {
+			allowedHosts: ['gatekeeper-web.up.railway.app'],
+		},
+	},
 	integrations: [
 		starlight({
 			title: siteConfig.title,
