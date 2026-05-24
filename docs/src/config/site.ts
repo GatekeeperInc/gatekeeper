@@ -1,6 +1,7 @@
 export const siteConfig = {
 	title: "Gatekeeper",
 	tagline: "Guide your guild through member trials with clear steps, shared feedback, and confident final decisions.",
+	siteUrl: "https://gatekeeperinc.github.io/gatekeeper",
 	repositoryUrl: "https://github.com/GatekeeperInc/gatekeeper",
 	supportUrl: "https://github.com/GatekeeperInc/gatekeeper/issues",
 	discordClientId: "1504236836547989631",
