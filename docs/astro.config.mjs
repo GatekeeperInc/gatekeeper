@@ -8,7 +8,7 @@ export default defineConfig({
 	site: siteConfig.siteUrl,
 	vite: {
 		preview: {
-			allowedHosts: ['gatekeeper-web.up.railway.app'],
+			allowedHosts: ['gatekeeper-web.up.railway.app', 'gatekeeper-bot.com', 'gatekeeper-bot.co.uk'],
 		},
 	},
 	integrations: [
