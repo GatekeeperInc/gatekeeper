@@ -3,8 +3,8 @@ import EditLink from '@astrojs/starlight/components/EditLink.astro';
 import LastUpdated from '@astrojs/starlight/components/LastUpdated.astro';
 import Pagination from '@astrojs/starlight/components/Pagination.astro';
 
-const privacyPolicyHref = new URL('privacy-policy/', Astro.url).pathname;
-const termsAndConditionsHref = new URL('terms-and-conditions/', Astro.url).pathname;
+const privacyPolicyHref = new URL('/privacy-policy/', Astro.url).pathname;
+const termsAndConditionsHref = new URL('/terms-and-conditions/', Astro.url).pathname;
 ---
 
 <footer class="sl-flex">
