@@ -98,6 +98,14 @@ export class SummaryCommand extends Command {
 			},
 		});
 
+		if (workflowResult.kind === "embed") {
+			await interaction.reply({
+				embeds: [workflowResult.embed],
+				flags: ["Ephemeral"],
+			});
+			return;
+		}
+
 		await interaction.reply({
 			content: workflowResult.content,
 			flags: ["Ephemeral"],

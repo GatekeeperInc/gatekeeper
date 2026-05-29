@@ -520,9 +520,15 @@ export async function resolveTrialWorkflow(input: {
 	};
 }
 
-export type SummaryWorkflowResult = {
-	content: string;
-};
+export type SummaryWorkflowResult =
+	| {
+		kind: "message";
+		content: string;
+	}
+	| {
+		kind: "embed";
+		embed: ReturnType<typeof buildFeedbackSummaryEmbed>;
+	};
 
 export async function postTrialSummaryWorkflow(input: {
 	prisma: PrismaClient;
@@ -539,7 +545,7 @@ export async function postTrialSummaryWorkflow(input: {
 				"Error retrieving guild settings.",
 			);
 		}
-		return { content: settingsResult.userMessage };
+		return { kind: "message", content: settingsResult.userMessage };
 	}
 
 	try {
@@ -600,28 +606,14 @@ export async function postTrialSummaryWorkflow(input: {
 			logoUrl,
 		);
 
-		const sendResult = await sendOfficerChannelMessage(
-			input.client,
-			settingsResult.settings.officerChannelId,
-			{
-				embeds: [embed.toJSON()],
-			},
-		);
-
-		if (!sendResult.delivered) {
-			return {
-				content:
-					"I could not send the summary to the officer channel. Please check channel settings and permissions.",
-			};
-		}
-
-		return { content: "Posted the trial summary in the officer channel." };
+		return { kind: "embed", embed };
 	} catch (error) {
 		log.error(
 			{ memberId: input.member.id, err: error },
 			"Error retrieving trial feedback summary.",
 		);
 		return {
+			kind: "message",
 			content:
 				"An error occurred while retrieving the trial feedback summary. Please try again later.",
 		};
