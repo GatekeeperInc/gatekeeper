@@ -15,7 +15,7 @@ export type TrialListItem = {
 	displayName: string;
 	status: "Active" | "Passed" | "Failed";
 	startTime: Date;
-	projectedCompletion: Date;
+	projectedCompletion: Date | null;
 };
 
 export type RoleDebugRoleSnapshot = {
@@ -77,6 +77,24 @@ export type TrialFeedbackBoardEmbedItem = {
 export type TrialFeedbackBoardEmbedInput = {
 	entries: TrialFeedbackBoardEmbedItem[];
 	hiddenTrialCount: number;
+};
+
+export type HelpCommandReference = {
+	name: string;
+	description: string;
+	usage?: string;
+};
+
+export type HelpEmbedSection = {
+	title: string;
+	commands: HelpCommandReference[];
+};
+
+export type HelpEmbedInput = {
+	sections: HelpEmbedSection[];
+	selectedCategoryLabel?: string;
+	docsUrl: string;
+	supportUrl: string;
 };
 
 function applyGatekeeperLogo(
@@ -156,7 +174,7 @@ export function buildTrialListEmbeds(
 			const globalIndex = chunkIndex * MAX_TRIALS_PER_EMBED + itemIndex + 1;
 			embed.addFields({
 				name: `${globalIndex}. ${item.displayName}`,
-				value: `Status: **${item.status}**\nStarted: ${formatDiscordTimestamp(item.startTime)}\nProjected Completion: ${formatDiscordTimestamp(item.projectedCompletion)}`,
+				value: `Status: **${item.status}**\nStarted: ${formatDiscordTimestamp(item.startTime)}\nProjected Completion: ${item.projectedCompletion ? formatDiscordTimestamp(item.projectedCompletion) : "Unavailable"}`,
 				inline: false,
 			});
 		});
@@ -509,4 +527,43 @@ export function buildTrialFeedbackBoardEmbed(
 			.setTimestamp(new Date()),
 		logoUrl,
 	);
+}
+
+export function buildHelpEmbed(
+	input: HelpEmbedInput,
+	logoUrl?: string,
+): EmbedBuilder {
+	const embed = applyGatekeeperLogo(
+		new EmbedBuilder()
+			.setColor(COLORS.info)
+			.setTitle("Gatekeeper Help")
+			.setDescription(
+				input.selectedCategoryLabel
+					? `Category: **${input.selectedCategoryLabel}**`
+					: "All command categories",
+			)		
+			.setTimestamp(new Date()),			
+		logoUrl,
+	);
+
+	embed.addFields({
+		name: "Resources",
+		value: `[Docs](${input.docsUrl}) • [Support](${input.supportUrl})`,
+		inline: false,
+	});
+
+	for (const section of input.sections) {
+		const lines = section.commands.map((command) => {
+			const usage = command.usage ? ` (${command.usage})` : "";
+			return `/${command.name}${usage} - ${command.description}`;
+		});
+
+		embed.addFields({
+			name: section.title,
+			value: lines.join("\n"),
+			inline: false,
+		});
+	}
+
+	return embed;
 }
